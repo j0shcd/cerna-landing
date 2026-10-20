@@ -133,6 +133,8 @@ outbox runs, retaining the current and previous UTC day. Signup and outbox
 retention/deletion are not automated. Cloudflare and Brevo may separately retain
 service logs according to account settings and their terms.
 
+Privacy notice and impressum are drafted in `src/content/legal.ts` (pages `/privacy` and `/impressum`, linked from the footer). They contain `{{PLACEHOLDERS}}` for facts only the operator can supply; `npm run check:legal` lists them and `npm run deploy` refuses to run until none remain. Bump `CONSENT_VERSION` in `wrangler.jsonc` and the notice date whenever the notice changes in a way that affects what visitors agreed to.
+
 Before launch the owner must publish the controller's identity and contact,
 waitlist and owner-notification purposes and legal basis, recipients Cloudflare
 and Brevo (including any transfers), concrete retention periods, and how to

@@ -1,0 +1,83 @@
+---
+import { copy } from '../content/copy';
+---
+<div class="demo categorize-demo" data-categorize>
+  <span class="caption">{copy.sample}</span>
+  <ul class="category-rows">{copy.categorize.rows.map(row => <li>
+    <span class="merchant">{row.merchant}</span><span class="fig amount">{row.amount}</span>
+    {'uncertain' in row ? <div class="category-picker"><button type="button" class="chip uncertain" data-category-toggle aria-haspopup="listbox" aria-expanded="false" aria-controls="category-options">{copy.categorize.uncertain}</button><div class="category-menu" id="category-options" role="listbox" aria-label={copy.categorize.menu} tabindex="-1" hidden>{copy.categorize.categories.map((category, index) => <div role="option" aria-selected={index === 0 ? 'true' : 'false'} tabindex={index === 0 ? 0 : -1} data-category={category}>{category}</div>)}</div></div> : <span class="chip category" data-pigment={row.pigment}>{row.category}</span>}
+    <span class="row-check" aria-hidden="true">{copy.check}</span>
+  </li>)}</ul>
+  <div class="category-bottom"><p class="remember" aria-live="polite"></p><button type="button" class="primary" data-confirm>{copy.categorize.confirm}</button><p class="confirmed" role="status" hidden>{copy.check} {copy.categorize.confirmed}</p></div>
+</div>
+<script>
+  import { copy } from '../content/copy';
+  const demo = document.querySelector<HTMLElement>('[data-categorize]')!;
+  const toggle = demo.querySelector<HTMLButtonElement>('[data-category-toggle]')!;
+  const menu = demo.querySelector<HTMLElement>('[role="listbox"]')!;
+  const options = [...menu.querySelectorAll<HTMLElement>('[role="option"]')];
+  const confirm = demo.querySelector<HTMLButtonElement>('[data-confirm]')!;
+  const confirmed = demo.querySelector<HTMLElement>('.confirmed')!;
+  function close(restore = false) { menu.hidden = true; toggle.setAttribute('aria-expanded', 'false'); if (restore) toggle.focus(); }
+  function open() {
+    menu.hidden = false;
+    toggle.setAttribute('aria-expanded', 'true');
+    (options.find(option => option.getAttribute('aria-selected') === 'true') ?? options[0])!.focus();
+  }
+  function pick(option: HTMLElement) {
+    options.forEach(item => { item.setAttribute('aria-selected', String(item === option)); item.tabIndex = item === option ? 0 : -1; });
+    toggle.textContent = option.dataset.category!;
+    toggle.classList.remove('uncertain');
+    toggle.dataset.pigment = option.dataset.category === 'Restaurants' ? 'rose' : option.dataset.category === 'Groceries' ? 'sage' : 'violet';
+    demo.querySelector<HTMLElement>('.remember')!.textContent = copy.categorize.remember;
+    demo.classList.remove('is-confirmed');
+    confirm.hidden = false;
+    confirmed.hidden = true;
+    close(true);
+  }
+  toggle.addEventListener('click', () => menu.hidden ? open() : close());
+  toggle.addEventListener('keydown', event => { if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); open(); } });
+  options.forEach(option => option.addEventListener('click', () => pick(option)));
+  menu.addEventListener('keydown', event => {
+    const index = options.indexOf(document.activeElement as HTMLElement);
+    if (event.key === 'Tab') { close(); }
+    else if (event.key === 'Escape') { event.preventDefault(); close(true); }
+    else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (options[index]) pick(options[index]); }
+    else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+      options[next]!.focus();
+    }
+  });
+  document.addEventListener('click', event => { if (!toggle.contains(event.target as Node) && !menu.contains(event.target as Node)) close(); });
+  demo.addEventListener('focusout', event => { if (!demo.contains(event.relatedTarget as Node)) close(); });
+  confirm.addEventListener('click', () => {
+    close();
+    demo.classList.add('is-confirmed');
+    confirm.hidden = true;
+    confirmed.hidden = false;
+    confirmed.tabIndex = -1;
+    confirmed.focus();
+  });
+</script>
+<style>
+  .category-rows { list-style: none; margin: 0; padding: 0; }
+  li { display: grid; grid-template-columns: minmax(0,1fr) auto 14px; align-items: center; gap: 3px 6px; padding: 9px 0; border-bottom: 1px solid var(--cell); transition: background 180ms; }
+  li:hover { background: #f5f6fa; }
+  .merchant { font-size: .9375rem; }
+  .amount { font-size: .8125rem; text-align: right; }
+  .category, .category-picker { grid-column: 1/3; justify-self: start; }
+  .category-picker { position: relative; }
+  .uncertain { background: var(--ochre); }
+  button.chip { border: 1px solid #b9a467; min-height: 44px; }
+  .category-menu { position: absolute; left: 0; top: calc(100% + 4px); z-index: 5; min-width: 160px; background: var(--sheet); border: 1px solid #bfc3cd; border-radius: 4px; padding: 4px; box-shadow: 0 8px 20px #17191c26; }
+  [role='option'] { display: flex; align-items: center; min-height: 44px; padding: 8px; cursor: pointer; border-radius: 2px; }
+  [role='option']:hover, [role='option']:focus { background: var(--wash); }
+  [aria-selected='true'] { font-weight: 600; }
+  .row-check { grid-column: 3; grid-row: 1/3; color: var(--done); opacity: 0; }
+  .is-confirmed .row-check { opacity: 1; }
+  .category-bottom { padding-top: 10px; }
+  .remember { font-size: .8125rem; color: var(--graphite); min-height: 19px; margin-bottom: 8px; }
+  .primary { width: 100%; min-height: 44px; }
+  .confirmed { padding: 12px; text-align: center; color: var(--done); border: 1px solid var(--done); border-radius: 3px; }
+</style>

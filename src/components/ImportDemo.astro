@@ -1,0 +1,66 @@
+---
+import { copy } from '../content/copy';
+---
+<div class="demo import-demo" data-import>
+  <span class="caption">{copy.sample}</span>
+  <div class="import-files">{copy.import.files.map((file, index) => <button type="button" class="sample-file" draggable="true" data-file={index}><span class="file-name fig">{file.name}</span><span class="caption">{file.detail}</span><span class="add" aria-hidden="true">+</span></button>)}</div>
+  <div class="drop-tray" data-tray><span aria-hidden="true">↓</span>{copy.import.tray}</div>
+  <div class="import-result" aria-live="polite" aria-atomic="true">
+    <div class="count"><span class="fig" data-rows>221</span><span>{copy.import.rows}</span></div>
+    <div class="duplicates"><span class="fig" data-duplicates>9</span> {copy.import.duplicates}</div>
+    <div class="conversion fig">{copy.import.conversion}<span class="caption">{copy.import.rate}</span></div>
+    <span class="caption import-status" data-import-status></span>
+  </div>
+</div>
+<script>
+  import { copy } from '../content/copy';
+  const demo = document.querySelector<HTMLElement>('[data-import]')!;
+  const tray = demo.querySelector<HTMLElement>('[data-tray]')!;
+  let frame = 0;
+  function addFile(index: number) {
+    const file = copy.import.files[index];
+    if (!file) return;
+    cancelAnimationFrame(frame);
+    const start = performance.now();
+    const rows = demo.querySelector<HTMLElement>('[data-rows]')!;
+    const duplicates = demo.querySelector<HTMLElement>('[data-duplicates]')!;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const update = (time: number) => {
+      const progress = reduced ? 1 : Math.min(1, (time - start) / 450);
+      rows.textContent = String(Math.round(file.rows * progress));
+      duplicates.textContent = String(Math.round(file.duplicates * progress));
+      if (progress < 1) frame = requestAnimationFrame(update);
+      else demo.querySelector<HTMLElement>('[data-import-status]')!.textContent = `${file.name} · ${copy.import.added}`;
+    };
+    frame = requestAnimationFrame(update);
+    tray.classList.remove('drag-over');
+  }
+  demo.querySelectorAll<HTMLButtonElement>('[data-file]').forEach(button => {
+    button.addEventListener('click', () => addFile(Number(button.dataset.file)));
+    button.addEventListener('dragstart', event => { event.dataTransfer?.setData('text/plain', button.dataset.file!); if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy'; });
+  });
+  tray.addEventListener('dragover', event => { event.preventDefault(); tray.classList.add('drag-over'); });
+  tray.addEventListener('dragleave', () => tray.classList.remove('drag-over'));
+  tray.addEventListener('drop', event => {
+    event.preventDefault();
+    tray.classList.remove('drag-over');
+    const value = event.dataTransfer?.getData('text/plain');
+    if (value === '0' || value === '1') addFile(Number(value));
+  });
+</script>
+<style>
+  .import-files { display: grid; gap: 8px; }
+  .sample-file { position: relative; display: flex; flex-direction: column; align-items: start; min-width: 0; width: 100%; padding: 9px 30px 9px 10px; border: 1px solid var(--cell); background: var(--cell-head); border-radius: 4px; text-align: left; transition: border-color 180ms, transform 180ms; min-height: 54px; }
+  .sample-file:hover { border-color: var(--cobalt); transform: translateY(-1px); }
+  .file-name { font-size: .75rem; }
+  .add { position: absolute; right: 10px; top: 12px; color: var(--cobalt); font-size: 1.25rem; }
+  .drop-tray { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 8px; margin-block: 12px; border: 1px dashed #9fa6b1; border-radius: 4px; color: var(--graphite); font-size: .8125rem; text-align: center; transition: background 180ms; }
+  .drop-tray.drag-over { background: var(--wash); border-color: var(--cobalt); }
+  .count { display: flex; gap: 10px; align-items: baseline; }
+  .count .fig { font-size: 1.8rem; line-height: 1; }
+  .count > span:last-child { color: var(--graphite); font-size: .8125rem; }
+  .duplicates { color: var(--graphite); font-size: .8125rem; padding-block: 6px 10px; }
+  .conversion { border-left: 2px solid var(--pigment-ochre); padding-left: 9px; font-size: .75rem; }
+  .conversion .caption { display: block; margin-top: 3px; }
+  .import-status { display: block; min-height: 32px; margin-top: 8px; font-size: .6875rem; }
+</style>

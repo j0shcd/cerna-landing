@@ -1,43 +1,154 @@
-# Astro Starter Kit: Minimal
+# Cerna site
+
+## What this is
+
+A static Astro launch page served by Cloudflare Static Assets, with a Worker API,
+D1 waitlist and a Brevo owner-notification outbox. The Worker handles `/api/*`;
+static assets handle the site. No analytics, cookies or browser requests to third
+parties are part of this backend. The Worker calls Brevo server-side when enabled.
+
+## Local development
+
+Use the existing dependencies (Node >=22.22; tests require `node:sqlite`).
 
 ```sh
-npm create astro@latest -- --template minimal
+npm run db:migrate:local
+cp .dev.vars.example .dev.vars
+npm run worker:dev
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Set local secrets in `.dev.vars`; never commit that file. Keep `EMAIL_ENABLED=false`
+for local work unless real owner email delivery is intended. Wrangler vars live in
+`wrangler.jsonc`; use `.dev.vars` for local overrides. Set `SITE_ORIGIN` to the
+local origin for development. HTTP localhost and 127.0.0.1 origins are accepted
+only when `SITE_ORIGIN` is not HTTPS. For the Astro-only server use
+`npx astro dev --background`; manage it with `npx astro dev status`,
+`npx astro dev logs` and `npx astro dev stop`.
 
-## 🚀 Project Structure
+Checks:
 
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+```sh
+npx tsc --noEmit -p worker/tsconfig.json
+npx vitest run
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+Tests use the actual migration and SQL in in-memory Node SQLite, not a deployed
+D1 database. Minimal local declarations cover Node test APIs because the scaffold
+has no `@types/node`. Ports, browser behavior, remote D1 and actual Brevo delivery
+must be checked by the release owner.
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+## One-time Cloudflare and Brevo setup
 
-Any static assets, like images, can be placed in the `public/` directory.
+```sh
+npx wrangler d1 create cerna-waitlist --jurisdiction=eu
+```
 
-## 🧞 Commands
+Put the returned database ID into the existing `WAITLIST_DB` binding in
+`wrangler.jsonc`. Keep `migrations_dir` set to `migrations`; Wrangler applies
+numbered migrations in order. Configure a Brevo sender on an owned domain with
+verified DKIM/DMARC. `MAIL_FROM` must be an address on that domain, never Gmail.
+Set `MAIL_FROM_NAME` and `ADMIN_NOTIFY_TO` to the intended sender name and owner
+recipient. Signup addresses are never used as sender or Reply-To.
 
-All commands are run from the root of the project, from a terminal:
+```sh
+npx wrangler secret put BREVO_API_KEY
+npx wrangler secret put RATE_LIMIT_HMAC_KEY
+```
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+Use a randomly generated, high-entropy HMAC secret. Set vars `SITE_ORIGIN` to the
+public HTTPS origin (no trailing slash), `MAIL_FROM` to the verified sender,
+`CONSENT_VERSION` to the approved consent version, and `EMAIL_ENABLED=true` when
+backlog delivery is intended. The placeholder origin, sender and database ID must
+be replaced before deployment.
 
-## 👀 Want to learn more?
+```sh
+npm run db:migrate:remote
+npm run deploy
+```
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+The existing cron runs every minute. Deployment and account setup are not
+performed by local tests.
+
+## API and delivery
+
+`GET /api/health` returns `200 {"ok":true}`. `POST /api/waitlist` accepts JSON or
+form-encoded `email` and honeypot `company`, up to 2 KB. Emails are NFKC-normalized,
+trimmed and lowercased before validation. Supported addresses deliberately use
+ASCII only after normalization; non-ASCII local parts or domains return
+`invalid_email` (use ASCII punycode for internationalized domains). Addresses
+must contain exactly one `@`, a 1–64 character local part using letters, digits
+or `!#$%&'*+/=?^_` plus backtick, `{|}~.-`, with no leading, trailing or consecutive
+dots, and at least two domain labels. Each domain label contains 1–63 letters,
+digits or hyphens with no leading or trailing hyphen. The final label must be
+at least two letters or an `xn--` punycode label. Total length is at most 254
+UTF-8 bytes. Duplicate signups return success without another outbox
+row. Nonempty honeypots return success without storing anything. Other methods
+on these routes return 405 with `Allow`; unknown API routes return JSON 404.
+
+JSON results are `200 {"ok":true}`, or `{ "ok":false, "error": ... }` with 400
+`invalid_email`, 429 `rate_limited`, or 500 `save_failed`. Malformed or oversized
+bodies use `invalid_email`. Form posts redirect with 303 to `/?joined=1#join` or
+`/?error=invalid_email#join`, `/?error=rate_limited#join`, `/?error=save_failed#join`.
+A rejected Origin (or Referer origin when Origin is absent) returns 403 JSON
+`forbidden` for either encoding. Missing both headers is allowed.
+
+Rate counters use fixed 10-minute windows (5 attempts) and UTC days (20).
+Every processor run first deletes counters older than the previous UTC day's
+start, retaining only the current and previous day (the two-day window), even
+when email is disabled or delivery fails.
+Each window's increment is atomic and both increments share one D1 batch.
+Signup and conditional outbox insertion also share one transactional batch.
+The processor claims at most 20 due rows per run with a conditional 60-second
+lease, and bounds each Brevo fetch to 15 seconds. Sends retry after 1 minute,
+doubling to a 6-hour cap; attempt 10 fails permanently. Disabled email logs
+`email disabled` once per run and preserves the backlog. Notification failure
+does not change a saved signup's response.
+
+Leases prevent simultaneous processors from sending the same claimed row during
+normal operation. Delivery is at least once: a crash after Brevo accepts an email
+but before D1 records success, or a process stalled beyond its lease, can cause a
+duplicate. D1 and Brevo do not share a transaction.
+
+Read the list:
+
+```sh
+npx wrangler d1 execute WAITLIST_DB --remote --command "SELECT email, created_at FROM waitlist_signups ORDER BY created_at"
+```
+
+Inspect failed delivery rows through D1 (`outbox.status='failed'`). After resolving
+the cause, an operator can deliberately reset the chosen row to pending, clear
+its lock and reset attempts to retry; avoid replaying rows already accepted by
+Brevo. Error fields and logs contain fixed codes, never vendor response bodies.
+
+## Data and privacy
+
+Signup rows store a UUID, normalized email, ISO UTC timestamp, consent version,
+exact consent sentence “One email when Cerna opens, nothing else.” and source
+`landing`. The outbox links to that UUID and stores delivery state, attempt count,
+retry time, lease, fixed error code and sent time. Notifications to the owner
+contain only the signup email, signup UTC timestamp and running signup total.
+Rate-limit rows store only a keyed HMAC-SHA-256 IP digest, window and counter;
+raw IPs and user agents are not stored. Old counters are pruned during enabled
+outbox runs, retaining the current and previous UTC day. Signup and outbox
+retention/deletion are not automated. Cloudflare and Brevo may separately retain
+service logs according to account settings and their terms.
+
+Before launch the owner must publish the controller's identity and contact,
+waitlist and owner-notification purposes and legal basis, recipients Cloudflare
+and Brevo (including any transfers), concrete retention periods, and how to
+exercise access, correction, deletion, withdrawal and other applicable rights.
+The owner must choose those periods and handle requests, including any copies in
+owner email. The privacy notice and sender configuration are launch requirements.
+
+## Deliberately not built yet
+
+Double opt-in confirmation mail: add a separate outbox kind and confirmation
+state/token boundary before treating a signup as confirmed. Unsubscribe endpoint:
+add a verified removal route that also cancels pending notifications and applies
+the chosen deletion policy. Turnstile: verify server-side in `worker/handler.ts`
+before persistence and add its browser integration separately; it would change
+the current no-third-party-browser-request requirement.
+
+Next release step: replace placeholders, set secrets and publish privacy facts,
+then have the release owner run local live API/form checks and deploy verification.
+No Cloudflare resources or Brevo settings are created by this implementation.

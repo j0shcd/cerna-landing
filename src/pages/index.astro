@@ -1,3 +1,17 @@
 ---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Hero from '../components/Hero.astro';
+import FeatureColumns from '../components/FeatureColumns.astro';
+import ClosingCta from '../components/ClosingCta.astro';
+import Footer from '../components/Footer.astro';
 ---
-<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width" /><title>Cerna</title></head><body></body></html>
+<Base>
+  <Header />
+  <main id="main" tabindex="-1">
+    <Hero />
+    <FeatureColumns />
+    <ClosingCta />
+  </main>
+  <Footer />
+</Base>

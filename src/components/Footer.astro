@@ -1,0 +1,15 @@
+---
+import { copy } from '../content/copy';
+---
+<footer>
+  <div class="wrap footer-content"><span class="wordmark">{copy.brand}</span><p><strong>{copy.privacyTitle}</strong>{copy.privacy}</p><span class="copyright fig">{copy.copyright} {new Date().getFullYear()} {copy.brand}</span></div>
+</footer>
+<style>
+  footer { border-top: 1px solid var(--cell); padding-block: 32px max(40px,env(safe-area-inset-bottom)); }
+  .footer-content { display: grid; grid-template-columns: 1fr 3fr 1fr; gap: 24px 40px; align-items: start; }
+  .wordmark { font: 600 1.25rem var(--display); letter-spacing: -.03em; }
+  p { font-size: 1.0625rem; color: var(--graphite); max-width: 38rem; }
+  strong { display: block; margin-bottom: 6px; font: 600 1rem var(--display); color: var(--ink); }
+  .copyright { font-size: .75rem; color: var(--muted); text-align: right; white-space: nowrap; }
+  @media (max-width: 768px) { .footer-content { grid-template-columns: 1fr; } .copyright { text-align: left; } }
+</style>

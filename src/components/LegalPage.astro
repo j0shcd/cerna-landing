@@ -1,0 +1,36 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from './Header.astro';
+import Footer from './Footer.astro';
+import type { LegalDoc } from '../content/legal';
+
+const { doc } = Astro.props as { doc: LegalDoc };
+const parts = (text: string) => text.split(/(\{\{[^}]+\}\})/).map(value => ({ value, todo: /^\{\{/.test(value) }));
+---
+<Base>
+  <Header />
+  <main id="main" tabindex="-1" class="wrap legal">
+    <h1>{doc.title}</h1>
+    <p class="meta">Last updated {doc.updated}</p>
+    <p class="lead">{doc.intro}</p>
+    {doc.sections.map(section => (
+      <section>
+        <h2>{section.heading}</h2>
+        {section.items && <ul>{section.items.map(text => <li>{parts(text).map(p => p.todo ? <mark>{p.value}</mark> : p.value)}</li>)}</ul>}
+        {section.paragraphs?.map(text => <p>{parts(text).map(p => p.todo ? <mark>{p.value}</mark> : p.value)}</p>)}
+      </section>
+    ))}
+  </main>
+  <Footer />
+</Base>
+<style>
+  .legal { max-width: 46rem; padding-block: 24px 96px; }
+  h1 { font: 600 clamp(2rem, 1.4rem + 2.4vw, 3rem) var(--display); letter-spacing: -.03em; line-height: 1.05; margin-bottom: 8px; }
+  h2 { font: 600 1.25rem var(--display); letter-spacing: -.02em; margin: 40px 0 8px; }
+  p, li { font-size: 1.125rem; line-height: 1.6; color: var(--graphite); }
+  p + p { margin-top: 12px; }
+  ul { list-style: disc; padding-left: 1.25rem; display: grid; gap: 8px; margin: 8px 0 12px; }
+  .meta { font: 400 .875rem var(--figure); color: var(--muted); margin-bottom: 24px; }
+  .lead { color: var(--ink); }
+  mark { background: #fff0b8; color: var(--ink); padding: 0 4px; }
+</style>

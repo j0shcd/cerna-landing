@@ -1,0 +1,45 @@
+---
+import { copy } from '../content/copy';
+import SpreadsheetBackdrop from './SpreadsheetBackdrop.astro';
+import StatementCard from './StatementCard.astro';
+import WaitlistForm from './WaitlistForm.astro';
+---
+<section class="hero" aria-labelledby="hero-heading">
+  <SpreadsheetBackdrop />
+  <div class="wrap hero-content">
+    <div class="formula" aria-hidden="true"><span class="ref">{copy.formulaRef}</span><span class="fx">{copy.fx}</span><span class="value">{copy.formula}</span></div>
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <h1 id="hero-heading">{copy.headline.start}<br /><span class="last-line">{copy.headline.middle}<span class="strike">{copy.headline.strike}</span>{copy.headline.end}</span></h1>
+        <p class="lede">{copy.subhead}</p>
+        <div class="hero-form"><WaitlistForm id="join" /></div>
+      </div>
+      <div class="hero-card"><StatementCard /></div>
+    </div>
+  </div>
+</section>
+<style>
+  .hero { position: relative; isolation: isolate; padding-block: 50px 110px; }
+  .formula { display: flex; max-width: 680px; margin-bottom: 48px; min-width: 0; border: 1px solid var(--cell); background: var(--sheet); border-radius: 4px; color: var(--graphite); font: 400 .8125rem/1.4 var(--figure); overflow: hidden; }
+  .formula span { padding: 9px 12px; }
+  .ref { background: var(--cell-head); border-right: 1px solid var(--cell); color: var(--ink); }
+  .fx { border-right: 1px solid var(--cell); font-style: italic; }
+  .value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hero-grid { display: grid; grid-template-columns: minmax(0,1.12fr) minmax(0,1fr); gap: clamp(32px,4vw,64px); align-items: center; }
+  h1 { font-size: clamp(3.35rem,5.9vw,5.5rem); line-height: .99; margin-bottom: 28px; }
+  .last-line { white-space: nowrap; }
+  .strike { display: inline-block; position: relative; color: var(--graphite); }
+  .strike::after { content: ''; position: absolute; left: -.025em; right: -.025em; top: 56%; height: .065em; background: var(--ink); transform-origin: left; }
+  .lede { font-size: clamp(1.25rem,1.5vw,1.5rem); line-height: 1.4; max-width: 34rem; margin-bottom: 30px; text-wrap: pretty; }
+  .hero-card { min-width: 0; }
+  :global(.intro-play) h1 { animation: headline-in 400ms var(--ease) 450ms both; }
+  :global(.intro-play) .strike::after { animation: draw 700ms var(--ease) 700ms both; }
+  :global(.intro-play) .lede { animation: settle 350ms var(--ease) 1100ms both; }
+  :global(.intro-play) .hero-form, :global(.intro-play) .hero-card { animation: settle 350ms var(--ease) 1250ms both; }
+  @keyframes draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @keyframes headline-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes settle { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @media (min-width: 1024px) and (max-width: 1200px) { h1 { font-size: 5.65vw; } }
+  @media (max-width: 1023px) { .hero-grid { grid-template-columns: 1fr; gap: 48px; } .hero-copy { max-width: 720px; } .hero-card { width: 100%; max-width: 680px; } h1 { font-size: clamp(3rem,8.8vw,5.5rem); } .hero { padding-block: 28px 72px; } }
+  @media (max-width: 560px) { .formula { margin-bottom: 36px; } .formula .fx { display: none; } h1 { font-size: clamp(2.65rem,10.4vw,3.65rem); } .lede { font-size: 1.25rem; } }
+</style>

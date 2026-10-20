@@ -1,0 +1,70 @@
+---
+import { copy } from '../content/copy';
+---
+<figure class="statement" aria-label={copy.statement.label}>
+  <figcaption class="statement-head"><div class="files">{copy.statement.files.map(file => <span>{file}</span>)}</div><span class="caption">{copy.sample}</span></figcaption>
+  <div class="statement-status fig"><span data-statement-status>{copy.statement.done}</span><span class="status-dot" aria-hidden="true"></span></div>
+  <ul class="transactions">
+    {copy.statement.rows.map((row, index) => <li class:list={['transaction', { duplicate: 'duplicate' in row }]} style={`--step:${index * 230}ms`}>
+      <div class="merchant"><span class="raw" aria-hidden="true">{row.raw}</span><span class="clean">{row.clean}</span></div>
+      <div class="amount fig"><span class:list={['original', { converted: 'converted' in row }]} aria-hidden={'converted' in row ? 'true' : undefined}>{row.amount}</span>{'converted' in row && <span class="converted-amount">{row.converted}</span>}</div>
+      <div class="transaction-meta">{row.category && <span class="chip" data-pigment={row.pigment}>{row.category}</span>}<span class="caption">{row.note}</span></div>
+    </li>)}
+  </ul>
+  <div class="statement-foot"><span class="caption">{copy.statement.summary}</span><button class="quiet-button" type="button" data-replay>{copy.replay}</button></div>
+</figure>
+<script>
+  import { copy } from '../content/copy';
+  const card = document.querySelector<HTMLElement>('.statement')!;
+  const status = card.querySelector<HTMLElement>('[data-statement-status]')!;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  let timer: number | undefined;
+  function finish() { card.classList.remove('playing'); status.textContent = copy.statement.done; }
+  function play() {
+    clearTimeout(timer);
+    finish();
+    if (reduce.matches) return;
+    // Restart only after the previous animation state has been removed.
+    void card.offsetWidth;
+    card.classList.add('playing');
+    status.textContent = copy.statement.reading;
+    timer = window.setTimeout(finish, 2600);
+  }
+  card.querySelector('[data-replay]')!.addEventListener('click', play);
+  reduce.addEventListener('change', () => { if (reduce.matches) { clearTimeout(timer); finish(); } });
+  if (document.documentElement.classList.contains('intro-play')) window.setTimeout(play, 1600);
+</script>
+<style>
+  .statement { background: var(--sheet); border: 1px solid #d5d8d0; border-radius: 8px; box-shadow: 0 2px 0 #17191c03,0 30px 64px -45px #17191c77; overflow: hidden; transition: box-shadow 200ms; }
+  .statement:hover { box-shadow: 0 2px 0 #17191c03,0 32px 64px -40px #17191c77; }
+  .statement-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 16px 20px; background: var(--violet); border-bottom: 1px solid var(--cell); }
+  .files { display: flex; flex-wrap: wrap; gap: 6px; }
+  .files span { font: 400 .6875rem/1.4 var(--figure); border: 1px solid #bfbccb; background: #fff9; padding: 4px 7px; border-radius: 3px; }
+  .statement-status { display: flex; align-items: center; justify-content: space-between; padding: 13px 20px; color: var(--done); font-size: .75rem; border-bottom: 1px solid var(--cell); }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--done); }
+  .transactions { list-style: none; margin: 0; padding: 0; }
+  .transaction { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 7px 12px; padding: 14px 20px; border-bottom: 1px solid var(--cell); transition: background 180ms; }
+  .transaction:hover { background: #f8f9fc; }
+  .merchant { display: grid; min-width: 0; align-items: center; }
+  .merchant > span { grid-area: 1/1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .raw { opacity: 0; font: 400 .75rem var(--figure); color: var(--graphite); }
+  .clean { font: 500 1.0625rem var(--display); }
+  .amount { display: grid; text-align: right; font-size: .875rem; align-content: center; }
+  .amount > span { grid-area: 1/1; }
+  .original.converted { opacity: 0; }
+  .transaction-meta { grid-column: 1/-1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 24px; }
+  .duplicate { background: var(--warm); padding-block: 9px; }
+  .duplicate .clean { text-decoration: line-through; color: var(--graphite); font-size: .875rem; }
+  .duplicate .amount { text-decoration: line-through; color: var(--graphite); }
+  .duplicate .transaction-meta { min-height: 0; }
+  .statement-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 3px 12px 3px 20px; background: var(--cell-head); }
+  .playing .raw { animation: raw-out 750ms var(--ease) calc(200ms + var(--step)) both; }
+  .playing .clean, .playing .transaction-meta { animation: clean-in 750ms var(--ease) calc(200ms + var(--step)) both; }
+  .playing .original.converted { animation: raw-out 750ms var(--ease) calc(200ms + var(--step)) both; }
+  .playing .converted-amount { animation: clean-in 750ms var(--ease) calc(200ms + var(--step)) both; }
+  .playing .duplicate .clean { animation: duplicate-in 1200ms var(--ease) both; }
+  @keyframes raw-out { 0%,35% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes clean-in { 0%,35% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: none; } }
+  @keyframes duplicate-in { from { opacity: 0; } to { opacity: 1; } }
+  @media (max-width: 400px) { .transaction { padding-inline: 14px; } .statement-head { padding-inline: 14px; } .amount { font-size: .8125rem; } }
+</style>

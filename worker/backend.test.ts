@@ -1,0 +1,245 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import worker from './index';
+import { database } from './test-support/d1';
+import type { Env } from './env';
+import { normalizeEmail } from './validate';
+import { processOutbox } from './outbox';
+import { ipDigest, rateLimited } from './ratelimit';
+
+let store: ReturnType<typeof database>;
+let env: Env;
+let tasks: Promise<unknown>[];
+let ctx: ExecutionContext;
+const start = Date.parse('2026-10-20T12:00:00.000Z');
+const rows = (table: string) => store.sqlite.prepare(`SELECT * FROM ${table}`).all();
+async function post(email: unknown = 'user@example.eu', company = '', form = false, headers: Record<string, string> = {}) {
+  return worker.fetch(new Request('https://cerna.example/api/waitlist', {
+    method: 'POST', headers: { 'Content-Type': form ? 'application/x-www-form-urlencoded' : 'application/json', 'CF-Connecting-IP': '203.0.113.42', ...headers },
+    body: form ? new URLSearchParams({ email: String(email), company }).toString() : JSON.stringify({ email, company }),
+  }), env, ctx);
+}
+async function drain() { await Promise.all(tasks); tasks = []; }
+beforeEach(() => {
+  store = database(); tasks = [];
+  env = { WAITLIST_DB: store.db, SITE_ORIGIN: 'https://cerna.example', MAIL_FROM: 'waitlist@cerna.example', MAIL_FROM_NAME: 'Cerna', ADMIN_NOTIFY_TO: 'owner@example.eu', CONSENT_VERSION: '2026-10-20', EMAIL_ENABLED: 'false', BREVO_API_KEY: 'secret-test-key', RATE_LIMIT_HMAC_KEY: 'test-hmac-key' };
+  ctx = { waitUntil(task: Promise<unknown>) { tasks.push(task); } } as ExecutionContext;
+  vi.spyOn(console, 'log').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(Date, 'now').mockReturnValue(start);
+});
+afterEach(async () => { await drain(); store.sqlite.close(); vi.restoreAllMocks(); });
+
+describe('waitlist', () => {
+  it('saves consent and queues one owner notification', async () => {
+    const response = await post();
+    expect(response.status).toBe(200); expect(await response.json()).toEqual({ ok: true });
+    expect(rows('waitlist_signups')).toEqual([expect.objectContaining({ email: 'user@example.eu', consent_text: 'One email when Cerna opens, nothing else.', consent_version: '2026-10-20', source: 'landing' })]);
+    expect(rows('outbox')).toHaveLength(1);
+  });
+  it('duplicates and case/whitespace/NFKC variants have identical success and queue nothing extra', async () => {
+    for (const email of ['User@Example.eu', ' user@example.eu ', 'ｕｓｅｒ@example.eu']) {
+      const response = await post(email); expect(await response.json()).toEqual({ ok: true });
+    }
+    expect(rows('waitlist_signups')).toHaveLength(1); expect(rows('outbox')).toHaveLength(1);
+  });
+  it.each(['', 'a', 'a@b', '@example.eu', 'a@@example.eu', 'a@.eu', 'a@example.', 'a@ex..eu', 'a b@example.eu', 'a\u0000@example.eu', 'a\u200b@example.eu', `${'a'.repeat(250)}@x.eu`, null, 42])('rejects invalid email %s', async email => {
+    expect(normalizeEmail(email)).toBeNull();
+    const response = await post(email); expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ ok: false, error: 'invalid_email' });
+    expect(rows('waitlist_signups')).toHaveLength(0);
+  });
+  it.each([
+    'a..b@example.eu', 'a@b.c/d', 'a@-example.eu', `${'a'.repeat(65)}@example.eu`,
+    '.a@example.eu', 'a.@example.eu', 'a@example-.eu', `a@${'b'.repeat(64)}.eu`,
+    'a@example.c', 'a@example.12', 'a@example.xn--', 'a@example.c1',
+    'é@example.eu', 'a@éxample.eu', '😀@example.eu', '"a"@example.eu',
+    `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(62)}`,
+  ])('rejects unsupported syntax or exceeded boundary: %s', async email => {
+    expect(normalizeEmail(email)).toBeNull();
+    const response = await post(email);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ ok: false, error: 'invalid_email' });
+    expect(rows('waitlist_signups')).toHaveLength(0);
+  });
+  it.each([
+    ['a@b.eu', 'a@b.eu'],
+    ["a!#$%&'*+/=?^_`{|}~.-z@example.eu", "a!#$%&'*+/=?^_`{|}~.-z@example.eu"],
+    [' A.B@EXAMPLE.EU ', 'a.b@example.eu'],
+    ['ａ@ｅｘａｍｐｌｅ.eu', 'a@example.eu'],
+    ['a@1-b.example.xn--p1ai', 'a@1-b.example.xn--p1ai'],
+    [`${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(61)}`,
+      `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(61)}`],
+  ])('accepts supported syntax and boundaries: %s', async (email, normalized) => {
+    expect(normalizeEmail(email)).toBe(normalized);
+    expect((await post(email)).status).toBe(200);
+    expect(rows('waitlist_signups')[0]!.email).toBe(normalized);
+  });
+  it('silently accepts honeypots without storing any rows', async () => {
+    expect((await post('invalid', 'bot')).status).toBe(200);
+    for (const table of ['waitlist_signups', 'outbox', 'rate_limits']) expect(rows(table)).toHaveLength(0);
+  });
+  it('limits attempt six and resets the short window', async () => {
+    for (let i = 0; i < 5; i++) expect((await post()).status).toBe(200);
+    const response = await post(); expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ ok: false, error: 'rate_limited' });
+    vi.mocked(Date.now).mockReturnValue(start + 600_000);
+    expect((await post()).status).toBe(200);
+  });
+  it('limits attempt 21 across short windows; resets the UTC day', async () => {
+    const digest = await ipDigest('203.0.113.42', env.RATE_LIMIT_HMAC_KEY);
+    for (let i = 0; i < 20; i++) expect(await rateLimited(store.db, digest, start + Math.floor(i / 5) * 600_000)).toBe(false);
+    expect(await rateLimited(store.db, digest, start + 4 * 600_000)).toBe(true);
+    expect(await rateLimited(store.db, digest, start + 86_400_000)).toBe(false);
+  });
+  it('checks origins, referer fallback and local development exception', async () => {
+    expect((await post(undefined, '', false, { Origin: env.SITE_ORIGIN })).status).toBe(200);
+    expect((await post(undefined, '', false, { Origin: 'https://attacker.eu' })).status).toBe(403);
+    expect((await post(undefined, '', false, { Referer: 'https://attacker.eu/page' })).status).toBe(403);
+    expect((await post(undefined, '', false, { Origin: 'null' })).status).toBe(403);
+    expect((await post(undefined, '', false, { Origin: 'http://localhost:4321' })).status).toBe(403);
+    env.SITE_ORIGIN = 'http://localhost:4321';
+    expect((await post(undefined, '', false, { Origin: 'http://127.0.0.1:9876' })).status).toBe(200);
+    expect((await post(undefined, '', false, { Origin: 'http://localhost.attacker.eu:4321' })).status).toBe(403);
+  });
+  it('redirects form success and every contracted error', async () => {
+    const check = (response: Response, location: string) => { expect(response.status).toBe(303); expect(response.headers.get('Location')).toBe(location); };
+    check(await post(undefined, '', true), '/?joined=1#join');
+    check(await post('bad', '', true), '/?error=invalid_email#join');
+    for (let i = 0; i < 3; i++) await post();
+    check(await post(undefined, '', true), '/?error=rate_limited#join');
+    vi.mocked(Date.now).mockReturnValue(start + 600_000);
+    vi.spyOn(store.db, 'batch').mockRejectedValue(new Error('database unavailable'));
+    check(await post(undefined, '', true), '/?error=save_failed#join');
+    const response = await post(); expect(response.status).toBe(500); expect(await response.json()).toEqual({ ok: false, error: 'save_failed' });
+  });
+  it('caps streamed body bytes and handles malformed JSON', async () => {
+    for (const body of ['{', JSON.stringify({ email: 'a@b.eu', company: 'x'.repeat(2048) })]) {
+      const response = await worker.fetch(new Request('https://cerna.example/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }), env, ctx);
+      expect(response.status).toBe(400);
+    }
+    expect(rows('waitlist_signups')).toHaveLength(0);
+  });
+  it('rolls back the signup if the outbox insert fails', async () => {
+    store.sqlite.exec("CREATE TRIGGER reject_outbox BEFORE INSERT ON outbox BEGIN SELECT RAISE(ABORT, 'test'); END");
+    expect((await post()).status).toBe(500);
+    expect(rows('waitlist_signups')).toHaveLength(0);
+  });
+  it('routes health, 404 and method errors with Allow', async () => {
+    for (const [path, method, status, allow] of [['/api/health', 'GET', 200, null], ['/api/health', 'POST', 405, 'GET'], ['/api/waitlist', 'GET', 405, 'POST'], ['/api/missing', 'GET', 404, null]] as const) {
+      const response = await worker.fetch(new Request(`https://cerna.example${path}`, { method }), env, ctx);
+      expect(response.status).toBe(status); expect(response.headers.get('Allow')).toBe(allow);
+    }
+  });
+  it('stores no raw IP and logs no emails, IPs or secrets', async () => {
+    await post(); await drain();
+    expect(JSON.stringify(rows('rate_limits'))).not.toContain('203.0.113.42');
+    expect(rows('rate_limits')[0]!.ip_hash).toMatch(/^[0-9a-f]{64}$/);
+    const logs = JSON.stringify([vi.mocked(console.log).mock.calls, vi.mocked(console.error).mock.calls]);
+    for (const forbidden of ['user@example.eu', '203.0.113.42', env.BREVO_API_KEY, env.RATE_LIMIT_HMAC_KEY]) expect(logs).not.toContain(forbidden);
+  });
+});
+
+describe('outbox', () => {
+  async function seed() { await post(); await drain(); env.EMAIL_ENABLED = 'true'; }
+  it('sends with the owned sender and marks sent', async () => {
+    await seed(); const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 201 }));
+    await processOutbox(env, { now: () => start, send });
+    expect(rows('outbox')[0]).toMatchObject({ status: 'sent', attempts: 1, sent_at: new Date(start).toISOString(), locked_until: null });
+    const [url, options] = send.mock.calls[0]!;
+    expect(url).toBe('https://api.brevo.com/v3/smtp/email');
+    expect(options!.headers).toEqual({ 'Content-Type': 'application/json', 'api-key': env.BREVO_API_KEY });
+    const body = JSON.parse(options!.body as string);
+    expect(body.sender).toEqual({ name: 'Cerna', email: env.MAIL_FROM });
+    expect(body.to).toEqual([{ email: env.ADMIN_NOTIFY_TO }]);
+    expect(body.replyTo).toBeUndefined(); expect(body.textContent.split('\n')).toEqual(['user@example.eu', rows('waitlist_signups')[0]!.created_at, '1']);
+    await processOutbox(env, { now: () => start, send }); expect(send).toHaveBeenCalledTimes(1);
+  });
+  it('retains signup on Brevo 500 and doubles retry delay', async () => {
+    await seed(); const send = vi.fn<typeof fetch>().mockResolvedValue(new Response('secret-test-key user@example.eu', { status: 500 }));
+    await processOutbox(env, { now: () => start, send });
+    expect(rows('waitlist_signups')).toHaveLength(1);
+    expect(rows('outbox')[0]).toMatchObject({ status: 'pending', attempts: 1, next_attempt_at: new Date(start + 60_000).toISOString(), last_error: 'notification_send_failed' });
+    await processOutbox(env, { now: () => start + 59_999, send }); expect(send).toHaveBeenCalledTimes(1);
+    await processOutbox(env, { now: () => start + 60_000, send });
+    expect(rows('outbox')[0]!.next_attempt_at).toBe(new Date(start + 180_000).toISOString());
+    expect(JSON.stringify(vi.mocked(console.log).mock.calls)).not.toContain('user@example.eu');
+  });
+  it('fails permanently after attempt ten', async () => {
+    await seed(); store.sqlite.exec('UPDATE outbox SET attempts=9');
+    const send = vi.fn<typeof fetch>().mockRejectedValue(new Error('secret-test-key user@example.eu'));
+    await processOutbox(env, { now: () => start, send });
+    expect(rows('outbox')[0]).toMatchObject({ status: 'failed', attempts: 10, locked_until: null });
+    expect(console.error).toHaveBeenCalled();
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain('secret-test-key');
+  });
+  it('caps backoff at six hours and exhausts interrupted final claims', async () => {
+    await seed(); store.sqlite.exec('UPDATE outbox SET attempts=9');
+    const send = vi.fn<typeof fetch>().mockRejectedValue(new Error('failure'));
+    await processOutbox(env, { now: () => start, send });
+    expect(rows('outbox')[0]!.next_attempt_at).toBe(new Date(start + 21_600_000).toISOString());
+    store.sqlite.exec("UPDATE outbox SET status='pending', next_attempt_at='2020-01-01', attempts=10");
+    await processOutbox(env, { now: () => start, send }); expect(send).toHaveBeenCalledTimes(1);
+    expect(rows('outbox')[0]!.status).toBe('failed');
+  });
+  it('disabled logs once per run, leaves pending and later delivers backlog', async () => {
+    await post(); await drain(); vi.mocked(console.log).mockClear();
+    const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 201 }));
+    await processOutbox(env, { now: () => start, send });
+    expect(console.log).toHaveBeenCalledExactlyOnceWith(JSON.stringify({ event: 'email disabled' }));
+    expect(rows('outbox')[0]).toMatchObject({ status: 'pending', attempts: 0 }); expect(send).not.toHaveBeenCalled();
+    env.EMAIL_ENABLED = 'true'; await processOutbox(env, { now: () => start, send }); expect(send).toHaveBeenCalledTimes(1);
+  });
+  it('cleans expired counters with email disabled without touching pending rows', async () => {
+    await post(); await drain();
+    const pending = rows('outbox');
+    const cutoff = Math.floor(start / 86_400_000) * 86_400_000 - 86_400_000;
+    for (const windowStart of [cutoff - 1, cutoff]) {
+      store.sqlite.prepare("INSERT INTO rate_limits VALUES (?, 'day', ?, 1)").run('a'.repeat(64), windowStart);
+    }
+    const send = vi.fn<typeof fetch>();
+    await processOutbox(env, { now: () => start, send });
+    expect(rows('rate_limits').filter(row => row.ip_hash === 'a'.repeat(64))).toEqual([
+      expect.objectContaining({ window_start: cutoff }),
+    ]);
+    expect(rows('outbox')).toEqual(pending);
+    expect(send).not.toHaveBeenCalled();
+  });
+  it('concurrent processors claim the same row only once', async () => {
+    await seed(); const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 201 }));
+    await Promise.all([processOutbox(env, { now: () => start, send }), processOutbox(env, { now: () => start, send })]);
+    expect(send).toHaveBeenCalledTimes(1); expect(rows('outbox')[0]!.status).toBe('sent');
+  });
+  it('a failed background send cannot change the signup success response', async () => {
+    env.EMAIL_ENABLED = 'true';
+    const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 500 }));
+    vi.stubGlobal('fetch', send);
+    try {
+      const response = await post();
+      expect(response.status).toBe(200); expect(await response.json()).toEqual({ ok: true });
+      await drain();
+      expect(rows('waitlist_signups')).toHaveLength(1);
+      expect(rows('outbox')[0]).toMatchObject({ status: 'pending', attempts: 1 });
+      expect(send).toHaveBeenCalledTimes(1);
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it('the scheduled entry point drains a due retry through waitUntil', async () => {
+    await seed();
+    const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 201 }));
+    vi.stubGlobal('fetch', send);
+    try {
+      await worker.scheduled({} as ScheduledController, env, ctx);
+      await drain();
+      expect(send).toHaveBeenCalledTimes(1); expect(rows('outbox')[0]!.status).toBe('sent');
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it('processes at most twenty rows', async () => {
+    for (let i = 0; i < 21; i++) {
+      const id = `signup-${i}`;
+      store.sqlite.prepare("INSERT INTO waitlist_signups VALUES (?,?,?,'v1','One email when Cerna opens, nothing else.','landing')").run(id, `${i}@example.eu`, new Date(start).toISOString());
+      store.sqlite.prepare("INSERT INTO outbox(id,signup_id,kind,next_attempt_at) VALUES (?,?,'owner_notification',?)").run(`outbox-${i}`, id, new Date(start).toISOString());
+    }
+    env.EMAIL_ENABLED = 'true'; const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 201 }));
+    await processOutbox(env, { now: () => start, send }); expect(send).toHaveBeenCalledTimes(20);
+    expect(rows('outbox').filter(row => row.status === 'pending')).toHaveLength(1);
+  });
+});

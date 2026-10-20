@@ -1,0 +1,41 @@
+---
+import '../styles/global.css';
+import displayFont from '@fontsource-variable/familjen-grotesk/files/familjen-grotesk-latin-wght-normal.woff2?url';
+import bodyFont from '@fontsource-variable/newsreader/files/newsreader-latin-standard-normal.woff2?url';
+import figureFont from '@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2?url';
+import { copy } from '../content/copy';
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content={copy.description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={copy.title} />
+    <meta property="og:description" content={copy.description} />
+    <meta name="theme-color" content="#fafaf7" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    {[displayFont, bodyFont, figureFont].map(font => <link rel="preload" href={font} as="font" type="font/woff2" crossorigin="anonymous" />)}
+    <title>{copy.title}</title>
+    <script is:inline>
+      try {
+        if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !sessionStorage.getItem('cerna-intro')) {
+          document.documentElement.classList.add('intro-play');
+          sessionStorage.setItem('cerna-intro', '1');
+        }
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#main">{copy.skip}</a>
+    <slot />
+  </body>
+</html>
+<script>
+  import '../scripts/page';
+</script>
+<style>
+  .skip { position: absolute; left: var(--gutter); top: 12px; z-index: 20; padding: 12px 16px; background: var(--sheet); font: 500 1rem var(--display); transform: translateY(-160%); }
+  .skip:focus { transform: none; }
+</style>

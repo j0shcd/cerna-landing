@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cerna</title>
+<meta name="description" content="Cerna reads your bank statements, sets aside duplicates, converts currencies and sorts every payment, so you can glance, correct and get on with your life.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=Hanken+Grotesk:wght@400;500;600&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- Tokens (shared with the app: DESIGN.md §2, §3) ---------- */
+:root {
+  --bg: #F1EDE4;
+  --surface: #FAF7F1;
+  --line: #DDD6C9;
+  --line-strong: #C8BFB0;
+  --text: #26221D;
+  --text-soft: #5F574D;
+  --text-muted: #6F675C;
+  --accent: #3D5596;
+  --accent-ink: #FAF7F1;
+  --positive: #2F7258;
+  --negative: #A23F4C;
+
+  --p-slate: #708AA0; --p-umber: #A07F62; --p-moss: #7C8D68;
+  --p-rose: #A67879;  --p-wisteria: #8581A7; --p-celadon: #678F8C; --p-stone: #8C857D;
+
+  --serif: "Crimson Pro", Georgia, serif;
+  --sans: "Hanken Grotesk", system-ui, sans-serif;
+  --figure: "Space Grotesk", ui-monospace, sans-serif;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Letter geometry: a margin for notes, a measure for the letter */
+  --margin-col: 13rem;
+  --gap-col: 3.5rem;
+  --measure: 36rem;
+  --gutter: 1rem;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1C1915; --surface: #25211C; --line: #38322B; --line-strong: #4A4239;
+    --text: #ECE4D5; --text-soft: #B3A898; --text-muted: #958B7C;
+    --accent: #93AEEA; --accent-ink: #1C1915; --positive: #7FBFA2; --negative: #EE8B95;
+    --p-slate: #829CB3; --p-umber: #B39174; --p-moss: #8EA079;
+    --p-rose: #BA8A8B; --p-wisteria: #9793BA; --p-celadon: #78A29E; --p-stone: #9E978F;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1C1915; --surface: #25211C; --line: #38322B; --line-strong: #4A4239;
+  --text: #ECE4D5; --text-soft: #B3A898; --text-muted: #958B7C;
+  --accent: #93AEEA; --accent-ink: #1C1915; --positive: #7FBFA2; --negative: #EE8B95;
+  --p-slate: #829CB3; --p-umber: #B39174; --p-moss: #8EA079;
+  --p-rose: #BA8A8B; --p-wisteria: #9793BA; --p-celadon: #78A29E; --p-stone: #9E978F;
+  color-scheme: dark;
+}
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 1.375rem;           /* 22px: a letter is read, not scanned */
+  line-height: 1.55;
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+p { margin: 0 0 1em; }
+a { color: inherit; text-decoration-color: var(--line-strong); text-underline-offset: 0.2em; }
+a:hover { text-decoration-color: currentColor; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.num { font-family: var(--figure); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* ---------- Letter layout: margin notes | letter ---------- */
+.page {
+  max-width: calc(var(--margin-col) + var(--gap-col) + var(--measure) + 2 * var(--gutter));
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+.row {
+  display: grid;
+  grid-template-columns: var(--margin-col) minmax(0, var(--measure));
+  column-gap: var(--gap-col);
+}
+.row > .body { grid-column: 2; }
+.row > .note { grid-column: 1; }
+
+/* ---------- Masthead ---------- */
+.masthead {
+  padding-top: clamp(2rem, 5vw, 3.5rem);
+  align-items: baseline;
+}
+.wordmark {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.75rem;
+  letter-spacing: 0.005em;
+  line-height: 1;
+  text-decoration: none;
+}
+.masthead-inner { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.dateline {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+/* ---------- Opening (hero) ---------- */
+.opening { padding-top: clamp(5rem, 14vw, 10rem); }
+.salutation {
+  font-style: italic;
+  color: var(--text-soft);
+  margin-bottom: 1.25rem;
+}
+h1 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(2.5rem, 6.2vw, 4.25rem);
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  margin: 0 0 2.25rem;
+  text-wrap: balance;
+}
+h1 em { font-style: italic; color: var(--text-soft); }
+.lede { max-width: 33rem; color: var(--text); }
+
+/* ---------- Waitlist form: a line to write your address on ---------- */
+.reply { margin-top: 2.5rem; max-width: 30rem; }
+.reply-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  border-bottom: 1px solid var(--line-strong);
+  transition: border-color 200ms var(--ease-out);
+}
+.reply-row:focus-within { border-bottom-color: var(--accent); }
+.reply label { font-family: var(--sans); font-size: 0.8125rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem; }
+.reply input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 1.375rem;
+  padding: 0.5rem 0 0.6rem;
+  outline: none;
+}
+.reply input::placeholder { color: var(--text-muted); font-style: italic; }
+.btn-primary {
+  flex: none;
+  margin-bottom: 0.5rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 1rem;
+  padding: 0.7rem 1.1rem;
+  cursor: pointer;
+  transition: filter 150ms var(--ease-out);
+}
+.btn-primary:hover { filter: brightness(1.1); }
+.reply-hint { font-family: var(--sans); font-size: 0.8125rem; color: var(--text-muted); margin: 0.6rem 0 0; min-height: 1.2em; }
+.reply-hint.is-error { color: var(--negative); }
+.reply-done {
+  display: none;
+  font-size: 1.375rem;
+  padding: 0.5rem 0 0.6rem;
+  border-bottom: 1px solid var(--positive);
+}
+.reply-done .tick { color: var(--positive); font-family: var(--sans); margin-right: 0.4rem; }
+.reply.is-done .reply-row, .reply.is-done label { display: none; }
+.reply.is-done .reply-done { display: block; }
+
+/* ---------- Letter body with margin notes ---------- */
+.letter { padding-top: clamp(7rem, 16vw, 12rem); }
+.passage { margin-bottom: 4.5rem; }
+.passage h2 {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.4375rem;
+  line-height: 1.25;
+  margin: 0 0 0.6rem;
+}
+.passage p:last-child { margin-bottom: 0; }
+.note {
+  font-family: var(--figure);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  text-align: right;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--line);
+  align-self: start;
+}
+.note b { font-weight: 500; color: var(--text-soft); }
+.note .kept { color: var(--positive); }
+.note .strike { text-decoration: line-through; text-decoration-color: var(--line-strong); }
+
+/* ---------- Enclosure: the usual month ---------- */
+.enclosure { margin: 1rem 0 6rem; }
+.enc-label {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-bottom: 0.9rem;
+}
+.band {
+  display: flex;
+  gap: 2px;
+  height: 64px;
+}
+.seg {
+  position: relative;
+  border-radius: 1px;
+  transform-origin: left center;
+}
+.seg:first-child { border-radius: 3px 1px 1px 3px; }
+.seg.kept {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--positive);
+  border-radius: 1px 3px 3px 1px;
+}
+.band-labels {
+  display: flex;
+  gap: 2px;
+  margin-top: 0.55rem;
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  line-height: 1.3;
+}
+.band-labels span { overflow: hidden; white-space: nowrap; text-overflow: clip; }
+.band-labels .kept-label { color: var(--positive); font-weight: 500; }
+.band-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  margin-top: 1.25rem;
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.band-totals .num { color: var(--text); font-size: 0.875rem; }
+.band-totals .kept .num { color: var(--positive); }
+
+/* ---------- Sign-off and P.S. (closing CTA) ---------- */
+.signoff p { margin: 0; }
+.signature {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 2.75rem;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  margin-top: 0.9rem !important;
+}
+.ps { padding-top: 5rem; }
+.ps p .ps-mark { font-family: var(--sans); font-size: 0.8125rem; color: var(--text-muted); margin-right: 0.6rem; letter-spacing: 0.02em; }
+
+/* ---------- Footer ---------- */
+.foot {
+  margin-top: clamp(7rem, 14vw, 10rem);
+  padding: 1.5rem 0 3rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+.foot .body { display: grid; grid-template-columns: 1fr auto; gap: 1rem 2rem; }
+.foot strong { color: var(--text-soft); font-weight: 500; }
+.foot p { margin: 0; max-width: 28rem; }
+.theme-toggle {
+  font: inherit; color: var(--text-muted); background: none; border: 0; padding: 0;
+  cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 0.2em;
+  align-self: start;
+}
+
+/* ---------- Motion: arrive like ink settling ---------- */
+.reveal { opacity: 0; transform: translateY(6px); transition: opacity 900ms var(--ease-out), transform 900ms var(--ease-out); }
+.reveal.in { opacity: 1; transform: none; }
+.band .seg { transform: scaleX(0); transition: transform 900ms var(--ease-out); }
+.band.in .seg { transform: scaleX(1); }
+.band-labels span, .band-totals { opacity: 0; transition: opacity 700ms var(--ease-out) 700ms; }
+.enclosure.in .band-labels span, .enclosure.in .band-totals { opacity: 1; }
+.no-js .reveal, .no-js .band .seg, .no-js .band-labels span, .no-js .band-totals { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; transition-delay: 0ms !important; animation: none !important; }
+  .reveal, .band .seg, .band-labels span, .band-totals { opacity: 1 !important; transform: none !important; }
+}
+
+/* ---------- Narrow: margin notes move above their passage ---------- */
+@media (max-width: 860px) {
+  body { font-size: 1.1875rem; }
+  .row { grid-template-columns: minmax(0, 1fr); }
+  .row > .body, .row > .note { grid-column: 1; }
+  .note {
+    text-align: left;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    padding: 0 0 0 0.8rem;
+    margin-bottom: 1rem;
+    font-size: 0.8125rem;
+  }
+  .passage { margin-bottom: 3.5rem; }
+  .reply input { font-size: 1.1875rem; }
+  .reply-row { flex-wrap: wrap; border-bottom: 0; }
+  .reply-row input { flex-basis: 100%; border-bottom: 1px solid var(--line-strong); }
+  .reply-row:focus-within input { border-bottom-color: var(--accent); }
+  .btn-primary { width: 100%; margin: 0.75rem 0 0; padding: 0.85rem 1rem; }
+  .band { height: 52px; }
+  .band-labels .hide-narrow { visibility: hidden; }
+  .foot .body { grid-template-columns: 1fr; }
+  .theme-toggle { justify-self: start; }
+}
+</style>
+</head>
+<body class="no-js">
+<script>document.body.classList.remove('no-js');</script>
+
+<div class="page">
+
+  <header class="row masthead">
+    <div class="body masthead-inner">
+      <a class="wordmark" href="#" aria-label="Cerna, home">Cerna</a>
+      <span class="dateline" id="dateline">Zürich, autumn 2026</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Opening: the hero -->
+    <section class="row opening" aria-labelledby="hero-title">
+      <div class="body">
+        <p class="salutation reveal">To the one who keeps the spreadsheet,</p>
+        <h1 id="hero-title" class="reveal">Your money is in order. Your evenings shouldn&rsquo;t be the price of keeping it&nbsp;there.</h1>
+        <p class="lede reveal">Cerna reads your bank statements, sets aside the duplicates, converts every currency into one, and files each payment where it belongs. You glance, correct what matters, and go back to living.</p>
+
+        <form class="reply reveal" id="reply-top" novalidate>
+          <label for="email-top">Your email</label>
+          <div class="reply-row">
+            <input id="email-top" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.ch" required>
+            <button class="btn-primary" type="submit">Join the waitlist</button>
+          </div>
+          <p class="reply-done" role="status" aria-live="polite"><span class="tick" aria-hidden="true">&#10003;</span>You&rsquo;re on the list. We&rsquo;ll write when your place is ready.</p>
+          <p class="reply-hint" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- The letter: three passages, each with a note in the margin -->
+    <section class="letter" aria-label="What Cerna does">
+
+      <div class="row passage reveal">
+        <p class="note" aria-hidden="true"><b>UBS</b> PDF &middot; <b>Revolut</b> CSV<br>418 rows read<br><span class="strike">6 duplicates</span> set aside</p>
+        <div class="body">
+          <h2>Statements, as your bank sends them.</h2>
+          <p>Drop in the files you already have, overlapping months and all. Cerna reads them, notices the same payment arriving twice, and keeps it once. Nothing to clean up first.</p>
+        </div>
+      </div>
+
+      <div class="row passage reveal">
+        <p class="note" aria-hidden="true"><span class="num">EUR 42.80</span><br>&rarr; <span class="num">CHF 40.11</span><br>rate of 14 September</p>
+        <div class="body">
+          <h2>Every currency, one picture.</h2>
+          <p>The dinner in Lisbon, the subscription billed in dollars, the rent in francs. Each is converted at the rate of its own day, so a month adds up the way it actually happened.</p>
+        </div>
+      </div>
+
+      <div class="row passage reveal">
+        <p class="note" aria-hidden="true">212 filed<br><b>3 need your eye</b></p>
+        <div class="body">
+          <h2>It asks only what it can&rsquo;t know.</h2>
+          <p>Each payment arrives already filed. Where Cerna is unsure, it says so and waits for you. Correct it once and it remembers, and when your habits change, it changes with them.</p>
+        </div>
+      </div>
+
+      <!-- Enclosure: the one visual -->
+      <div class="row enclosure" id="enclosure">
+        <p class="note" aria-hidden="true">Enclosed</p>
+        <figure class="body" style="margin:0">
+          <figcaption class="enc-label">A usual month, as Cerna draws it. The space left is what you kept.</figcaption>
+          <div class="band" id="band" role="img" aria-label="Sample usual month: income CHF 7'600. Home 28 percent, groceries 12, getting around 9, eating out 8, insurance 9, everything else 10, money kept 24 percent, CHF 1'840.">
+            <div class="seg" style="flex:28; background:var(--p-slate)"></div>
+            <div class="seg" style="flex:12; background:var(--p-umber); transition-delay:60ms"></div>
+            <div class="seg" style="flex:9;  background:var(--p-moss); transition-delay:120ms"></div>
+            <div class="seg" style="flex:8;  background:var(--p-rose); transition-delay:180ms"></div>
+            <div class="seg" style="flex:9;  background:var(--p-wisteria); transition-delay:240ms"></div>
+            <div class="seg" style="flex:10; background:var(--p-stone); transition-delay:300ms"></div>
+            <div class="seg kept" style="flex:24; transition-delay:420ms"></div>
+          </div>
+          <div class="band-labels" aria-hidden="true">
+            <span style="flex:28">Home</span>
+            <span style="flex:12" class="hide-narrow">Groceries</span>
+            <span style="flex:9" class="hide-narrow">Travel</span>
+            <span style="flex:8" class="hide-narrow">Dining</span>
+            <span style="flex:9" class="hide-narrow">Cover</span>
+            <span style="flex:10" class="hide-narrow">Other</span>
+            <span style="flex:24" class="kept-label">Kept</span>
+          </div>
+          <div class="band-totals">
+            <span>Usual income <span class="num">CHF 7&rsquo;600</span></span>
+            <span>Spent <span class="num">CHF 5&rsquo;760</span></span>
+            <span class="kept">Kept <span class="num">CHF 1&rsquo;840</span></span>
+          </div>
+        </figure>
+      </div>
+
+      <div class="row signoff reveal">
+        <div class="body">
+          <p>Keep the spreadsheet if you love it. We just think you&rsquo;ve earned your evenings back.</p>
+          <p style="margin-top:2rem">Yours,</p>
+          <p class="signature">Cerna</p>
+        </div>
+      </div>
+
+      <!-- P.S.: the closing CTA -->
+      <div class="row ps reveal">
+        <div class="body">
+          <p><span class="ps-mark">P.S.</span>We&rsquo;re opening Cerna to a few people at a time, starting in Switzerland. Leave your address and we&rsquo;ll write when it&rsquo;s your turn.</p>
+          <form class="reply" id="reply-bottom" novalidate>
+            <label for="email-bottom">Your email</label>
+            <div class="reply-row">
+              <input id="email-bottom" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.ch" required>
+              <button class="btn-primary" type="submit">Join the waitlist</button>
+            </div>
+            <p class="reply-done" role="status" aria-live="polite"><span class="tick" aria-hidden="true">&#10003;</span>You&rsquo;re on the list. We&rsquo;ll write when your place is ready.</p>
+            <p class="reply-hint" aria-live="polite"></p>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="row foot">
+    <div class="body">
+      <p><strong>Private by default.</strong> Your statements and what Cerna learns from them stay yours. We never sell your data, and we use your email only to tell you when Cerna is ready.</p>
+      <button class="theme-toggle" id="theme-toggle" type="button">Dark paper</button>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  // Dateline: today's date, the way a letter is dated.
+  try {
+    var d = new Date();
+    document.getElementById('dateline').textContent =
+      'Zürich, ' + d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  } catch (e) {}
+
+  // Waitlist: one state shared by both forms. (No backend here; success is simulated.)
+  var forms = document.querySelectorAll('form.reply');
+  var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  function markDone() { forms.forEach(function (f) { f.classList.add('is-done'); }); }
+  forms.forEach(function (form) {
+    var input = form.querySelector('input');
+    var hint = form.querySelector('.reply-hint');
+    input.addEventListener('input', function () { hint.textContent = ''; hint.classList.remove('is-error'); });
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var v = input.value.trim();
+      if (!emailRe.test(v)) {
+        hint.textContent = v ? 'That address looks incomplete. Check it and try again.' : 'Enter your email to join the waitlist.';
+        hint.classList.add('is-error');
+        input.focus();
+        return;
+      }
+      markDone();
+      try { localStorage.setItem('cerna-waitlist', '1'); } catch (err) {}
+    });
+  });
+  try { if (localStorage.getItem('cerna-waitlist') === '1' && !/fresh/.test(location.search)) markDone(); } catch (e) {}
+
+  // Theme toggle (dark is a bonus; light is the default)
+  var root = document.documentElement, btn = document.getElementById('theme-toggle');
+  function isDark() { return root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; }
+  function label() { btn.textContent = isDark() ? 'Light paper' : 'Dark paper'; }
+  try { var t = localStorage.getItem('cerna-theme'); if (t) root.dataset.theme = t; } catch (e) {}
+  label();
+  btn.addEventListener('click', function () {
+    root.dataset.theme = isDark() ? 'light' : 'dark';
+    try { localStorage.setItem('cerna-theme', root.dataset.theme); } catch (e) {}
+    label();
+  });
+
+  // Reveal: passages settle as they arrive; the band draws in once.
+  var targets = document.querySelectorAll('.reveal, #enclosure');
+  function show(el) {
+    el.classList.add('in');
+    if (el.id === 'enclosure') document.getElementById('band').classList.add('in');
+  }
+  if (!('IntersectionObserver' in window) || /static/.test(location.search)) { targets.forEach(show); return; }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) { if (en.isIntersecting) { show(en.target); io.unobserve(en.target); } });
+  }, { rootMargin: '0px 0px -8% 0px' });
+  targets.forEach(function (el) { io.observe(el); });
+})();
+</script>
+</body>
+</html>

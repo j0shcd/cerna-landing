@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script>document.documentElement.className='js'</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cerna — Waitlist</title>
+<meta name="description" content="Cerna imports your bank statements, removes duplicates, converts currencies and sorts every transaction, so you can check in, course-correct and get on with life.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600&family=Hanken+Grotesk:wght@400;500;600&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- Tokens ---------- */
+:root {
+  --paper: #F2F4F0;          /* cool morning paper, not cream */
+  --surface: #FBFCFA;        /* product objects */
+  --ink: #1B2422;
+  --ink-soft: #4B5653;       /* 7.0:1 on paper */
+  --ink-muted: #5F6965;      /* 5.3:1 on paper */
+  --grid: #D2DAD4;
+  --grid-strong: #B7C2BB;
+  --accent: #33508F;         /* Cerna indigo: the one filled button, focus, selection */
+  --accent-hover: #2A4378;
+  --positive: #2F7258;
+  --attention: #8A5E00;
+  --dusk: #1E2830;           /* closing band: the evening you get back */
+  --dusk-ink: #E9EDE8;
+  --dusk-soft: #AEB8B3;
+
+  --f-display: "Bricolage Grotesque", "Hanken Grotesk", system-ui, sans-serif;
+  --f-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-figure: "Space Grotesk", ui-monospace, monospace;
+
+  --step-hero: clamp(2.75rem, 1.6rem + 5.2vw, 6.25rem);
+  --step-h2: clamp(1.75rem, 1.3rem + 1.9vw, 2.75rem);
+  --step-h3: clamp(1.375rem, 1.2rem + .7vw, 1.75rem);
+  --step-lead: clamp(1.125rem, 1.05rem + .35vw, 1.3125rem);
+  --step-body: 1.0625rem;
+  --step-small: .875rem;
+
+  --gutter: clamp(16px, 4vw, 56px);
+  --max: 1200px;
+  --radius: 10px;
+  --col: clamp(78px, 8.4vw, 124px);  /* spreadsheet column */
+  --row: 34px;
+  --ease: cubic-bezier(.2,.7,.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 var(--step-body)/1.5 var(--f-body);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter); }
+.num { font-family: var(--f-figure); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- Top bar ---------- */
+.top {
+  position: absolute; inset: 0 0 auto 0; z-index: 3; height: 72px; background: var(--paper);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 22px var(--gutter);
+}
+.wordmark {
+  font: 600 1.375rem/1 var(--f-display); letter-spacing: -.02em; text-decoration: none;
+  display: inline-flex; align-items: center; gap: .5rem;
+}
+.wordmark i {  /* the mark: a single cell, cleared */
+  width: 14px; height: 14px; border: 2px solid currentColor; border-radius: 3px; display: inline-block;
+}
+.top a.quiet { font-size: .9375rem; font-weight: 500; text-decoration: none; color: var(--ink-soft); padding: 8px 2px; }
+.top a.quiet:hover { color: var(--ink); }
+
+/* ---------- Hero ---------- */
+.hero { position: relative; min-height: max(680px, 100svh); display: grid; align-items: center; overflow: hidden; isolation: isolate; }
+.sheet {
+  position: absolute; inset: 72px 0 0 0; z-index: -1; overflow: hidden;
+  font: 400 .8125rem/1 var(--f-figure); color: var(--ink-muted);
+  /* the spreadsheet stays only at the edges once it has cleared */
+  -webkit-mask-image: radial-gradient(ellipse 120% 95% at 50% 50%, transparent 0 34%, #000 78%);
+          mask-image: radial-gradient(ellipse 120% 95% at 50% 50%, transparent 0 34%, #000 78%);
+  transition: -webkit-mask-size 1.6s var(--ease), mask-size 1.6s var(--ease);
+}
+.sheet.busy { -webkit-mask-image: none; mask-image: none; }
+.sheet .lines {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size: var(--col) var(--row);
+  background-position: var(--gx, 44px) var(--gy, 30px);
+}
+.sheet .colhead, .sheet .rowhead { position: absolute; color: var(--ink-muted); font-size: .6875rem; letter-spacing: .04em; }
+.sheet .colhead { top: 0; left: 0; right: 0; height: 30px; background: var(--paper); border-bottom: 1px solid var(--grid-strong); z-index: 1; }
+.sheet .colhead span { position: absolute; top: 0; width: var(--col); text-align: center; line-height: 30px; }
+.sheet .rowhead { left: 0; top: 0; bottom: 0; width: 44px; background: var(--paper); border-right: 1px solid var(--grid-strong); }
+.sheet .rowhead span { position: absolute; left: 0; width: 44px; height: var(--row); line-height: var(--row); text-align: right; padding-right: 10px; }
+.cell {
+  position: absolute; height: var(--row); width: var(--col); padding: 0 8px;
+  line-height: var(--row); white-space: nowrap; overflow: hidden; text-overflow: clip;
+  color: #7D8783; transition: opacity .55s var(--ease), transform .55s var(--ease), filter .55s var(--ease);
+}
+.cell.wide { width: calc(var(--col) * 2); }
+.cell.err { color: #A23F4C; }
+.cell.warn { background: #F3E7C3; color: #6B4A00; }
+.cell.gone { opacity: 0; transform: translateY(-6px); filter: blur(2px); }
+.select {
+  position: absolute;
+  border: 2px solid var(--accent); background: rgba(51,80,143,.06);
+  transition: opacity .6s var(--ease);
+}
+.select::after { content: ""; position: absolute; right: -4px; bottom: -4px; width: 6px; height: 6px; background: var(--accent); }
+.select.gone { opacity: 0; }
+
+.hero-copy { padding-top: 96px; padding-bottom: 72px; }
+.hero h1 {
+  font: 500 var(--step-hero)/.98 var(--f-display);
+  font-variation-settings: "opsz" 96;
+  letter-spacing: -.035em; margin: 0; max-width: 11.5ch;
+  text-wrap: balance;
+}
+.hero h1 .ref {
+  font-family: var(--f-figure); font-weight: 400; letter-spacing: -.04em;
+  color: var(--accent); white-space: nowrap;
+}
+.hero .lead {
+  font-size: var(--step-lead); line-height: 1.5; color: var(--ink-soft);
+  max-width: 34rem; margin: 28px 0 36px; text-wrap: pretty;
+}
+.hero .facts { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: var(--step-small); color: var(--ink-muted); }
+.hero .facts span::before { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--positive); margin-right: 8px; vertical-align: middle; }
+
+/* load moment: first only the sheet and the headline, then the sheet clears and the rest settles in */
+.js .hero-copy > :not(h1) { opacity: 0; transform: translateY(10px); transition: opacity .9s var(--ease), transform .9s var(--ease); }
+.js .hero.clear .hero-copy > :not(h1) { opacity: 1; transform: none; }
+.js .hero.clear .hero-copy > .join { transition-delay: .12s; }
+.js .hero.clear .hero-copy > .facts { transition-delay: .24s; }
+
+/* ---------- Waitlist form (reusable) ---------- */
+.join { max-width: 30rem; }
+.join form { display: flex; gap: 8px; background: var(--surface); padding: 6px; border-radius: 14px; border: 1px solid var(--grid-strong); box-shadow: 0 1px 0 rgba(27,36,34,.04), 0 12px 32px -18px rgba(27,36,34,.25); }
+.join input {
+  flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink);
+  font: 400 1.0625rem/1 var(--f-body); padding: 0 12px; height: 48px; border-radius: 9px;
+}
+.join input::placeholder { color: var(--ink-muted); }
+.join input:focus { outline: none; }
+.join form:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(51,80,143,.16); }
+.btn {
+  appearance: none; border: 0; cursor: pointer; height: 48px; padding: 0 20px; border-radius: 9px;
+  background: var(--accent); color: #fff; font: 600 1rem/1 var(--f-body); white-space: nowrap;
+  transition: background .2s, transform .2s;
+}
+.btn:hover { background: var(--accent-hover); }
+.btn:active { transform: scale(.98); }
+.join .note { margin: 12px 2px 0; font-size: var(--step-small); color: var(--ink-muted); }
+.join .note[data-error] { color: #A23F4C; }
+.join .done { display: none; align-items: center; gap: 14px; background: var(--surface); border: 1px solid var(--grid-strong); border-radius: 14px; padding: 14px 16px; }
+.join .done b { display: block; font-weight: 600; }
+.join .done span { color: var(--ink-soft); font-size: .9375rem; }
+.join .tick { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--positive); display: grid; place-items: center; }
+.join.is-done form, .join.is-done .note { display: none; }
+.join.is-done .done { display: flex; animation: settle .5s var(--ease); }
+@keyframes settle { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Beats ---------- */
+.beats { padding: clamp(72px, 10vw, 140px) 0 clamp(56px, 8vw, 120px); }
+.beats-intro { font: 500 var(--step-h2)/1.1 var(--f-display); letter-spacing: -.025em; max-width: 18ch; margin: 0 0 clamp(48px, 7vw, 96px); text-wrap: balance; }
+.beats-intro em { font-style: normal; color: var(--ink-muted); }
+.beat {
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(28px, 6vw, 96px);
+  align-items: center; padding: clamp(36px, 5vw, 64px) 0; border-top: 1px solid var(--grid);
+}
+.beat h3 { font: 500 var(--step-h3)/1.15 var(--f-display); letter-spacing: -.02em; margin: 0 0 12px; }
+.beat p { margin: 0; color: var(--ink-soft); max-width: 27rem; text-wrap: pretty; }
+.beat .who { display: block; font: 500 .75rem/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 14px; }
+
+/* product objects */
+.obj { background: var(--surface); border: 1px solid var(--grid); border-radius: var(--radius); padding: 20px; box-shadow: 0 20px 40px -32px rgba(27,36,34,.35); }
+.obj small { font-size: .8125rem; color: var(--ink-muted); }
+
+.files { display: flex; flex-direction: column; gap: 10px; }
+.file { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--grid); border-radius: 8px; background: #fff; }
+.file .ext { font: 500 .6875rem/1 var(--f-figure); letter-spacing: .06em; padding: 5px 6px; border-radius: 4px; background: var(--paper); color: var(--ink-soft); }
+.file b { font-weight: 500; flex: 1; }
+.file .num { color: var(--ink-muted); font-size: .875rem; }
+.merge { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--grid-strong); display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; }
+.merge .num.big { font-size: 1.75rem; }
+.merge .dup { color: var(--ink-soft); font-size: .9375rem; }
+
+.rows { margin: 0; padding: 0; list-style: none; }
+.rows li { display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 14px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--grid); font-size: .9375rem; }
+.rows li:last-child { border-bottom: 0; }
+.rows .m { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip { font-size: .8125rem; padding: 4px 10px; border-radius: 99px; background: var(--paper); color: var(--ink-soft); white-space: nowrap; }
+.chip.unsure { background: #F6EBCB; color: #6B4A00; }
+.chip.unsure::before { content: "?"; font-weight: 600; margin-right: 5px; }
+.rows .num { min-width: 5.5em; text-align: right; }
+.confirm { margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.btn.sm { height: 38px; padding: 0 16px; font-size: .9375rem; }
+
+.brief .month { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.brief .total { font-size: clamp(2rem, 1.6rem + 1.4vw, 2.75rem); margin: 6px 0 2px; }
+.brief .usual { color: var(--positive); font-size: .9375rem; font-weight: 500; }
+.range { position: relative; height: 8px; border-radius: 99px; background: var(--paper); margin: 18px 0 20px; }
+.range .band { position: absolute; left: 30%; width: 38%; top: 0; bottom: 0; border-radius: 99px; background: #CFE0D7; }
+.range .dot { position: absolute; left: 52%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--positive); border: 3px solid var(--surface); box-sizing: content-box; }
+.brief ul { list-style: none; margin: 0; padding: 0; }
+.brief li { display: flex; gap: 12px; padding: 10px 0; border-top: 1px solid var(--grid); font-size: .9375rem; color: var(--ink-soft); }
+.brief li b { color: var(--ink); font-weight: 500; }
+.brief li .k { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; background: var(--attention); }
+.brief li .k.fx { background: var(--grid-strong); }
+
+/* ---------- Closing (evening) ---------- */
+.evening { background: var(--dusk); color: var(--dusk-ink); padding: clamp(80px, 11vw, 160px) 0 clamp(64px, 8vw, 112px); position: relative; overflow: hidden; }
+.evening h2 { font: 500 clamp(2.5rem, 1.6rem + 4vw, 5rem)/1 var(--f-display); font-variation-settings: "opsz" 96; letter-spacing: -.035em; margin: 0 0 20px; max-width: 13ch; text-wrap: balance; }
+.evening p.sub { color: var(--dusk-soft); font-size: var(--step-lead); max-width: 30rem; margin: 0 0 36px; }
+.evening .join form { background: #26323B; border-color: #3A4852; box-shadow: none; }
+.evening .join input { color: var(--dusk-ink); }
+.evening .join input::placeholder { color: #94A09A; }
+.evening .join form:focus-within { border-color: #9DB2E6; box-shadow: 0 0 0 3px rgba(157,178,230,.2); }
+.evening .btn { background: var(--dusk-ink); color: var(--dusk); }
+.evening .btn:hover { background: #fff; }
+.evening .join .note { color: var(--dusk-soft); }
+.evening .join .note[data-error] { color: #EE9AA2; }
+.evening .join .done { background: #26323B; border-color: #3A4852; }
+.evening .join .done span { color: var(--dusk-soft); }
+.evening :focus-visible { outline-color: #9DB2E6; }
+
+footer { background: var(--dusk); color: var(--dusk-soft); font-size: var(--step-small); }
+footer .wrap { display: grid; grid-template-columns: auto 1fr auto; gap: 16px 40px; align-items: start; padding-top: 28px; padding-bottom: 36px; border-top: 1px solid #33404A; }
+footer .wordmark { color: var(--dusk-ink); font-size: 1.125rem; }
+footer .wordmark i { width: 12px; height: 12px; }
+footer p { margin: 0; max-width: 36rem; }
+footer p b { color: var(--dusk-ink); font-weight: 500; }
+
+/* ---------- Reveal ---------- */
+.rise { opacity: 0; transform: translateY(14px); transition: opacity .8s var(--ease), transform .8s var(--ease); }
+.rise.in { opacity: 1; transform: none; }
+
+/* ---------- Small screens ---------- */
+@media (max-width: 760px) {
+  .beat { grid-template-columns: 1fr; }
+  .hero { align-items: end; }
+  .hero-copy { padding-top: 120px; padding-bottom: 48px; }
+  .sheet { -webkit-mask-image: linear-gradient(to bottom, #000 0 18%, transparent 52%); mask-image: linear-gradient(to bottom, #000 0 18%, transparent 52%); }
+  .join form { flex-direction: column; padding: 6px; }
+  .join input { height: 50px; }
+  .btn { width: 100%; height: 50px; }
+  .btn.sm { width: auto; height: 38px; }
+  footer .wrap { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+  .rise { opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="sheet busy" id="sheet" aria-hidden="true">
+    <div class="lines"></div>
+    <div class="colhead" id="colhead"></div>
+    <div class="rowhead" id="rowhead"></div>
+    <div id="cells"></div>
+  </div>
+
+  <nav class="top" aria-label="Main">
+    <a class="wordmark" href="#"><i></i>Cerna</a>
+    <a class="quiet" href="#join-end">Join the waitlist</a>
+  </nav>
+
+  <div class="wrap hero-copy">
+    <h1>Life isn’t lived in cell <span class="ref">D47</span>.</h1>
+    <p class="lead">Cerna reads your bank statements, sets duplicates aside, converts every currency and sorts each transaction. You look in when you like, correct what’s off, and get on with your week.</p>
+
+    <div class="join" data-join>
+      <form novalidate>
+        <label class="sr-only" for="email-top">Email address</label>
+        <input id="email-top" type="email" name="email" autocomplete="email" placeholder="you@example.ch" required>
+        <button class="btn" type="submit">Join the waitlist</button>
+      </form>
+      <p class="note" aria-live="polite">One email when Cerna opens in your country. Nothing else.</p>
+      <div class="done" role="status" tabindex="-1">
+        <span class="tick" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.2 3L13 4.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <div><b>You’re on the waitlist.</b><span>We’ll write once, when Cerna opens.</span></div>
+      </div>
+    </div>
+
+    <div class="facts" aria-label="At launch">
+      <span>Starting in Switzerland</span><span>UBS and Revolut first</span><span>Private by default</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="beats" aria-labelledby="beats-title">
+    <div class="wrap">
+      <h2 class="beats-intro rise" id="beats-title">The sheet, kept for you. <em>Without the evenings it used to take.</em></h2>
+
+      <article class="beat rise">
+        <div>
+          <span class="who">Cerna does</span>
+          <h3>Hand it your statements.</h3>
+          <p>Drop in a UBS PDF or a Revolut CSV, even two that overlap. Cerna reads every line and sets aside anything it has already seen.</p>
+        </div>
+        <div class="obj" aria-label="Example import">
+          <div class="files">
+            <div class="file"><span class="ext">PDF</span><b>UBS statement, September</b><span class="num">142</span></div>
+            <div class="file"><span class="ext">CSV</span><b>Revolut, Aug–Sep</b><span class="num">79</span></div>
+          </div>
+          <div class="merge">
+            <div><span class="num big">212</span> <small>transactions added</small></div>
+            <span class="dup"><span class="num">9</span> duplicates set aside</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="beat rise">
+        <div>
+          <span class="who">You decide</span>
+          <h3>It sorts. You nod.</h3>
+          <p>Every transaction arrives with a category already chosen. The few it isn’t sure about are marked, and one tap confirms the rest.</p>
+        </div>
+        <div class="obj" aria-label="Example review">
+          <ul class="rows">
+            <li><span class="m">Migros Zürich HB</span><span class="chip">Groceries</span><span class="num">84.30</span></li>
+            <li><span class="m">SBB CFF FFS</span><span class="chip">Transport</span><span class="num">42.00</span></li>
+            <li><span class="m">TWINT Anna M.</span><span class="chip unsure">Restaurants</span><span class="num">36.50</span></li>
+            <li><span class="m">Coop Pronto</span><span class="chip">Groceries</span><span class="num">12.95</span></li>
+          </ul>
+          <div class="confirm"><small>1 marked for a look</small><button class="btn sm" type="button" tabindex="-1">Confirm 4</button></div>
+        </div>
+      </article>
+
+      <article class="beat rise">
+        <div>
+          <span class="who">You live</span>
+          <h3>Your month, in a minute.</h3>
+          <p>Everything in francs, set against what’s usual for you. Adjust course if something moved, then close the app and go outside.</p>
+        </div>
+        <div class="obj brief" aria-label="Example monthly brief">
+          <div class="month"><small>September spending</small><span class="usual">Within your usual</span></div>
+          <div class="total num">CHF 4’812</div>
+          <div class="range" aria-hidden="true"><span class="band"></span><span class="dot"></span></div>
+          <ul>
+            <li><span class="k"></span><span><b>Restaurants CHF 140 above usual.</b> Three more visits, similar bills.</span></li>
+            <li><span class="k fx"></span><span>Lisbon trip: <span class="num">EUR 612.40</span> converted at each day’s rate.</span></li>
+          </ul>
+        </div>
+      </article>
+    </div>
+  </section>
+</main>
+
+<section class="evening" id="join-end" aria-labelledby="end-title">
+  <div class="wrap">
+    <h2 id="end-title" class="rise">Close the spreadsheet. Keep the clarity.</h2>
+    <p class="sub rise">Cerna is opening to a small group first, starting in Switzerland.</p>
+    <div class="join rise" data-join>
+      <form novalidate>
+        <label class="sr-only" for="email-end">Email address</label>
+        <input id="email-end" type="email" name="email" autocomplete="email" placeholder="you@example.ch" required>
+        <button class="btn" type="submit">Join the waitlist</button>
+      </form>
+      <p class="note" aria-live="polite">One email when Cerna opens in your country. Nothing else.</p>
+      <div class="done" role="status" tabindex="-1">
+        <span class="tick" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.2 3L13 4.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <div><b>You’re on the waitlist.</b><span>We’ll write once, when Cerna opens.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <a class="wordmark" href="#"><i></i>Cerna</a>
+    <p><b>Private by default.</b> Your transactions are yours. We don’t sell data or show ads, and your waitlist email is used for one thing: telling you Cerna is open.</p>
+    <span>© 2026 Cerna</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  /* ---- Spreadsheet hero: cell D47 is the headline's "D47" ---- */
+  const sheet = document.getElementById('sheet');
+  const cellsEl = document.getElementById('cells');
+  const ref = document.querySelector('.hero h1 .ref');
+  const ROW = 34, HEAD = 30, SEL = {c: 3, r: 47};
+  // [column index, row number, text, class]: a well-kept money sheet, up close
+  const data = [
+    [0,38,'03.09.'],[1,38,'COOP-4521 ZUERICH','wide'],[3,38,'-84.30'],[4,38,'Groceries'],
+    [0,39,'03.09.'],[1,39,'TWINT *ANNA M.','wide'],[3,39,'-36.50'],[4,39,'??','warn'],
+    [0,40,'04.09.'],[1,40,'SBB EASYRIDE','wide'],[3,40,'-42.00'],[4,40,'Transport'],[6,40,'dup? check UBS'],
+    [0,41,'05.09.'],[1,41,'REVOLUT*EUR 62.00','wide'],[3,41,'=C41*0.937'],[4,41,'Travel'],
+    [0,42,'05.09.'],[1,42,'Migros Online','wide'],[3,42,'-112.75'],[4,42,'Groceries'],
+    [0,43,'07.09.'],[1,43,'Salary SEPT','wide'],[3,43,'7’350.00'],
+    [3,44,'#REF!','err'],[4,44,'fix later','warn'],
+    [7,39,'=SUMIF(E:E;"Groc*";D:D)','wide'],[7,41,'EUR→CHF ??'],[9,38,'Budget v7 FINAL','wide'],
+    [9,42,'=D44-D46'],[10,40,'#N/A','err'],[8,45,'ask bank'],[0,46,'08.09.'],[1,46,'Galaxus AG','wide'],[3,46,'-249.00'],
+    [11,44,'Q3 total?'],[12,41,'=AVERAGE(D:D)','wide'],[0,48,'11.09.'],[1,48,'PAYPAL *SPOTIFY','wide'],[3,48,'-13.95'],[4,48,'Subscr.'],
+    [5,50,'copy from tab 2','wide'],[2,52,'=IFERROR(VLOOKUP(B52;Cat!A:B;2;0);"?")','wide'],[9,49,'#VALUE!','err'],[13,47,'dup?','warn'],
+    [0,53,'14.09.'],[1,53,'Coop Pronto','wide'],[3,53,'-12.95'],[14,39,'reconcile'],[11,52,'CHF?'],[6,54,'Revolut tab'],
+    [0,56,'18.09.'],[1,56,'Restaurant Hiltl','wide'],[3,56,'-96.00'],[8,57,'=SUM(D38:D55)'],[12,55,'#REF!','err'],
+    [2,59,'missing Aug'],[10,60,'fix FX'],[0,62,'22.09.'],[1,62,'Helsana','wide'],[3,62,'-389.20'],[13,61,'??','warn'],
+    [0,34,'Date'],[1,34,'Description','wide'],[3,34,'CHF'],[4,34,'Category'],[0,30,'Budget 2026'],[3,31,'v7'],
+  ];
+  const layout = () => {
+    const probe = document.createElement('div'); probe.style.cssText = 'position:absolute;visibility:hidden;width:var(--col)'; sheet.appendChild(probe); const col = probe.offsetWidth || 110; probe.remove();
+    const sb = sheet.getBoundingClientRect(), rb = ref.getBoundingClientRect();
+    const sx = rb.left - sb.left - 6, sy = rb.top - sb.top + rb.height * .1, sh = rb.height * .86;
+    const x = c => sx + (c - SEL.c) * col, y = r => sy + (r - SEL.r) * ROW;
+    sheet.style.setProperty('--gx', (((sx % col) + col) % col) + 'px');
+    sheet.style.setProperty('--gy', (((sy % ROW) + ROW) % ROW) + 'px');
+    const W = sb.width, H = sb.height;
+    let ch = '';
+    for (let c = 0; c < 26; c++) { const l = x(c); if (l > 44 - col && l < W) ch += `<span style="left:${l}px">${String.fromCharCode(65 + c)}</span>`; }
+    document.getElementById('colhead').innerHTML = ch;
+    let rh = '';
+    for (let r = 1; r < 140; r++) { const t = y(r); if (t >= HEAD - 4 && t < H) rh += `<span style="top:${t}px">${r}</span>`; }
+    document.getElementById('rowhead').innerHTML = rh;
+    const gone = sheet.dataset.cleared ? ' gone' : '';
+    cellsEl.innerHTML = data.filter(([c, r]) => x(c) >= 44 && y(r) >= HEAD).map(([c, r, t, cls]) =>
+      `<div class="cell ${cls||''}${gone}" data-c="${c}" data-r="${r}" style="left:${x(c)}px;top:${y(r)}px">${t}</div>`
+    ).join('') + `<div class="select${gone}" style="left:${sx}px;top:${sy}px;width:${rb.width + 14}px;height:${sh}px"></div>`;
+  };
+  const go = () => { layout(); addEventListener('resize', layout); };
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(go);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clear = () => {
+    sheet.dataset.cleared = '1';
+    cellsEl.querySelectorAll('.cell').forEach(el => {
+      const d = Math.hypot(el.dataset.c - SEL.c, (el.dataset.r - SEL.r) * .5);
+      setTimeout(() => el.classList.add('gone'), reduce ? 0 : 60 * d);
+    });
+    setTimeout(() => cellsEl.querySelector('.select').classList.add('gone'), reduce ? 0 : 700);
+    setTimeout(() => { sheet.classList.remove('busy'); sheet.closest('.hero').classList.add('clear'); }, reduce ? 0 : 900);
+  };
+  if (reduce || location.hash === '#still') (document.fonts ? document.fonts.ready : Promise.resolve()).then(clear); else setTimeout(clear, 1400);
+
+  /* ---- Reveal on scroll ---- */
+  const els = document.querySelectorAll('.rise');
+  if (reduce || !('IntersectionObserver' in window)) els.forEach(e => e.classList.add('in'));
+  else {
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), {rootMargin: '0px 0px -8% 0px'});
+    els.forEach(e => io.observe(e));
+  }
+
+  /* ---- Waitlist forms ---- */
+  const ok = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+  document.querySelectorAll('[data-join]').forEach(box => {
+    const form = box.querySelector('form'), input = box.querySelector('input'),
+          note = box.querySelector('.note'), base = note.textContent;
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const v = input.value.trim();
+      if (!ok(v)) {
+        note.textContent = v ? 'That email looks incomplete. Check it and try again.' : 'Enter your email to join.';
+        note.setAttribute('data-error', '');
+        input.setAttribute('aria-invalid', 'true'); input.focus(); return;
+      }
+      // static mock: real build posts to the waitlist endpoint here
+      document.querySelectorAll('[data-join]').forEach(b => b.classList.add('is-done'));
+      box.querySelector('.done').focus({preventScroll: true});
+    });
+    input.addEventListener('input', () => {
+      if (note.hasAttribute('data-error')) { note.textContent = base; note.removeAttribute('data-error'); input.removeAttribute('aria-invalid'); }
+    });
+  });
+})();
+</script>
+</body>
+</html>

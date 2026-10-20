@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cerna</title>
+<meta name="description" content="Cerna imports your bank statements, removes duplicates, converts currencies and sorts every payment, so you can get back to living.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=Hanken+Grotesk:wght@400;500;600&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Tokens (mirror DESIGN.md; reusable across future pages) ─────────────── */
+:root {
+  --bg: #F1EDE4;
+  --surface: #FAF7F1;
+  --line: #DDD6C9;
+  --line-strong: #C8BFB0;
+  --text: #26221D;
+  --text-soft: #5F574D;
+  --text-muted: #6F675C;
+  --accent: #3D5596;
+  --accent-hover: #2E437E;
+  --on-accent: #FAF7F1;
+  --positive: #2F7258;
+  --warning: #8A5E00;
+  --negative: #A23F4C;
+  --pig-slate: #708AA0;
+  --pig-umber: #A07F62;
+  --pig-moss: #7C8D68;
+  --pig-lily-rose: #A67879;
+  --pig-wisteria: #8581A7;
+  --pig-celadon: #678F8C;
+  --pig-stone: #8C857D;
+  --attention-wash: rgba(138, 94, 0, 0.10);
+
+  --font-title: 'Crimson Pro', Georgia, serif;
+  --font-body: 'Hanken Grotesk', system-ui, sans-serif;
+  --font-figure: 'Space Grotesk', ui-monospace, sans-serif;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --wrap: 75rem;
+  --gutter: clamp(1rem, 4vw, 2.5rem);
+  --section-gap: clamp(5rem, 12vw, 9rem);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1C1915; --surface: #25211C; --line: #38322B; --line-strong: #4A4239;
+    --text: #ECE4D5; --text-soft: #B3A898; --text-muted: #958B7C;
+    --accent: #93AEEA; --accent-hover: #B0C4F0; --on-accent: #1C1915;
+    --positive: #7FBFA2; --warning: #D6A853; --negative: #EE8B95;
+    --pig-slate: #829CB3; --pig-umber: #B39174; --pig-moss: #8EA079;
+    --pig-lily-rose: #BA8A8B; --pig-wisteria: #9793BA; --pig-celadon: #78A29E; --pig-stone: #9E978F;
+    --attention-wash: rgba(214, 168, 83, 0.12);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1C1915; --surface: #25211C; --line: #38322B; --line-strong: #4A4239;
+  --text: #ECE4D5; --text-soft: #B3A898; --text-muted: #958B7C;
+  --accent: #93AEEA; --accent-hover: #B0C4F0; --on-accent: #1C1915;
+  --positive: #7FBFA2; --warning: #D6A853; --negative: #EE8B95;
+  --pig-slate: #829CB3; --pig-umber: #B39174; --pig-moss: #8EA079;
+  --pig-lily-rose: #BA8A8B; --pig-wisteria: #9793BA; --pig-celadon: #78A29E; --pig-stone: #9E978F;
+  --attention-wash: rgba(214, 168, 83, 0.12);
+  color-scheme: dark;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 1.0625rem/1.5 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: var(--gutter); top: 0.75rem; background: var(--surface); padding: 0.5rem 0.75rem; z-index: 10; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 var(--gutter); }
+.num { font-family: var(--font-figure); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.title { font-family: var(--font-title); font-weight: 500; letter-spacing: -0.012em; line-height: 1.04; margin: 0; }
+.muted { color: var(--text-muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.site-head { display: flex; align-items: baseline; justify-content: space-between; padding-top: 1.75rem; }
+.wordmark { font-family: var(--font-title); font-weight: 500; font-size: 1.75rem; color: var(--text); text-decoration: none; letter-spacing: -0.01em; }
+.head-link { color: var(--text-soft); text-decoration: none; font-size: 0.9375rem; }
+.head-link:hover { color: var(--text); }
+
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
+.hero { padding-top: clamp(3.5rem, 9vw, 6.5rem); }
+.hero-grid { display: grid; grid-template-columns: 7fr 5fr; gap: 2rem 4rem; align-items: end; }
+.hero h1 { font-size: clamp(3rem, 7.4vw, 6.25rem); max-width: 10ch; }
+.hero h1 em { font-style: italic; font-weight: 400; color: var(--text-soft); }
+.lede { font-size: 1.1875rem; line-height: 1.5; color: var(--text-soft); margin: 0 0 1.75rem; max-width: 30rem; }
+
+/* ── Waitlist (reusable component) ───────────────────────────────────────── */
+.waitlist { max-width: 30rem; }
+.waitlist form { display: flex; gap: 0.5rem; }
+.waitlist input {
+  flex: 1; min-width: 0;
+  font: inherit; font-size: 1rem; color: var(--text);
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 6px;
+  padding: 0.8125rem 0.875rem;
+  transition: border-color 200ms;
+}
+.waitlist input::placeholder { color: var(--text-muted); }
+.waitlist input:hover { border-color: var(--text-muted); }
+.waitlist input[aria-invalid="true"] { border-color: var(--negative); }
+.btn-primary {
+  font: 600 1rem/1 var(--font-body); color: var(--on-accent); background: var(--accent);
+  border: 0; border-radius: 6px; padding: 0 1.25rem; cursor: pointer; white-space: nowrap;
+  transition: background-color 200ms;
+}
+.btn-primary:hover { background: var(--accent-hover); }
+.waitlist .note { font-size: 0.8125rem; color: var(--text-muted); margin: 0.75rem 0 0; }
+.waitlist .error { font-size: 0.8125rem; color: var(--negative); margin: 0.5rem 0 0; }
+.waitlist .done { display: none; }
+.waitlist.is-done form, .waitlist.is-done .note, .waitlist.is-done .error { display: none; }
+.waitlist.is-done .done { display: flex; gap: 0.875rem; align-items: flex-start; animation: settle 500ms var(--ease-out) both; }
+.done-mark {
+  flex: none; width: 2.75rem; height: 2.75rem; border: 1.5px solid var(--positive); border-radius: 3px;
+  display: grid; place-items: center; color: var(--positive);
+}
+.done p { margin: 0; }
+.done .done-title { font-family: var(--font-title); font-size: 1.5rem; font-weight: 500; line-height: 1.2; }
+.done .done-sub { font-size: 0.9375rem; color: var(--text-soft); margin-top: 0.125rem; }
+@keyframes settle { from { opacity: 0; transform: translateY(4px); } }
+
+/* ── Signature: the spreadsheet that resolves into a month ────────────────── */
+.sheet-stage { margin-top: clamp(3rem, 6vw, 4.5rem); }
+.sheet {
+  position: relative;
+  height: var(--sheet-h, 19rem);
+}
+.sheet-cells {
+  position: absolute; inset: 0;
+  display: grid; gap: 1px;
+  grid-template-rows: 1.5rem repeat(var(--rows), 1fr);
+  grid-template-columns: repeat(var(--cols), 1fr);
+  background: var(--line);
+  border: 1px solid var(--line);
+  transition: background-color 700ms var(--ease-out), border-color 700ms var(--ease-out);
+}
+.cell {
+  background: var(--surface);
+  font-size: 0.75rem; line-height: 1; color: var(--text-soft);
+  display: flex; align-items: center; padding: 0 0.5rem; overflow: hidden; white-space: nowrap;
+  transition: background-color 650ms var(--ease-out);
+  transform-origin: 0 0;
+}
+.cell > span { transition: opacity 450ms var(--ease-out); }
+.cell.n { justify-content: flex-end; font-family: var(--font-figure); font-variant-numeric: tabular-nums; }
+.cell.flag { background: var(--attention-wash); }
+.cell.err { color: var(--negative); }
+.cell.f { color: var(--text-muted); font-family: var(--font-figure); }
+.cell.h { background: var(--bg); justify-content: center; color: var(--text-muted); font-family: var(--font-figure); }
+.sheet.is-quiet .cell > span { opacity: 0; }
+.sheet.is-sorting .sheet-cells { background: transparent; border-color: transparent; }
+.sheet.is-sorting .cell.h { background: transparent; }
+
+/* The band: a usual month. Money kept is the empty paper, outlined in viridian. */
+.band-wrap { position: absolute; left: 0; right: 0; top: var(--band-top); opacity: 0; transition: opacity 500ms var(--ease-out); }
+.band { display: flex; gap: 2px; height: var(--band-h, 5.5rem); }
+.seg { position: relative; background: var(--c); flex: 0 0 auto; }
+.seg:first-child { border-radius: 3px 0 0 3px; }
+.seg.kept { background: transparent; border-radius: 0 3px 3px 0; }
+.seg.kept::after {
+  content: ''; position: absolute; inset: 0; border: 1.5px solid var(--positive); border-radius: 0 3px 3px 0;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 1100ms var(--ease-out) 250ms;
+}
+.seg-label { position: absolute; top: calc(100% + 0.625rem); left: 0; font-size: 0.8125rem; color: var(--text-soft); white-space: nowrap; }
+.seg-label .num { display: block; color: var(--text-muted); font-size: 0.8125rem; margin-top: 0.125rem; }
+.seg.kept .seg-label { color: var(--positive); font-weight: 600; }
+.seg.kept .seg-label .num { color: var(--positive); font-weight: 400; }
+.seg-label[hidden] { display: none; }
+.sheet.is-resolved .band-wrap { opacity: 1; }
+.sheet.is-resolved .seg.kept::after { clip-path: inset(0 0 0 0); }
+.sheet.is-resolved .sheet-cells { visibility: hidden; transition: visibility 0s 520ms; }
+.sheet-caption {
+  display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  margin-top: 1rem; font-size: 0.8125rem; color: var(--text-muted);
+  border-top: 1px solid var(--line); padding-top: 0.75rem;
+}
+.sheet-caption { display: grid; }
+.sheet-caption > span { grid-area: 1 / 1; transition: opacity 600ms var(--ease-out); }
+.sheet-caption .after { opacity: 0; transition-delay: 400ms; }
+.sheet.is-quiet + .sheet-caption .before { opacity: 0; }
+.sheet.is-resolved + .sheet-caption .after { opacity: 1; }
+
+/* ── Beats ────────────────────────────────────────────────────────────────── */
+.beats { margin-top: var(--section-gap); }
+.beats-head { font-size: clamp(2rem, 4vw, 2.75rem); max-width: 16ch; margin-bottom: clamp(2.5rem, 5vw, 4rem); }
+.beat {
+  display: grid; grid-template-columns: 5fr 4fr 3fr; gap: 1rem 3rem; align-items: baseline;
+  padding: 2rem 0; border-top: 1px solid var(--line);
+}
+.beat h3 { font-family: var(--font-title); font-weight: 500; font-size: 1.75rem; line-height: 1.15; margin: 0; letter-spacing: -0.01em; }
+.beat p { margin: 0; color: var(--text-soft); }
+.beat .proof { font-size: 0.9375rem; color: var(--text); text-align: right; }
+.beat .proof .muted { font-family: var(--font-body); font-size: 0.8125rem; display: block; margin-top: 0.25rem; }
+.arrow { color: var(--text-muted); padding: 0 0.25em; }
+
+/* ── Evenings: the time given back ────────────────────────────────────────── */
+.evenings { margin-top: var(--section-gap); }
+.evenings-grid { display: grid; grid-template-columns: 4fr 7fr; gap: 3rem 5rem; align-items: start; }
+.evenings h2 { font-size: clamp(2.25rem, 5vw, 3.75rem); max-width: 11ch; }
+.evenings .lede { margin-top: 1.25rem; }
+.week { --start: 18; --span: 5; font-size: 0.8125rem; }
+.week-hours { display: grid; grid-template-columns: 3rem 1fr; }
+.week-hours ol { list-style: none; margin: 0; padding: 0; position: relative; height: 1.25rem; }
+.week-hours li { position: absolute; transform: translateX(-50%); color: var(--text-muted); font-family: var(--font-figure); }
+.week-hours li:first-child { transform: none; }
+.week-hours li:last-child { transform: translateX(-100%); }
+.day { display: grid; grid-template-columns: 3rem 1fr; align-items: center; height: 2.75rem; border-top: 1px solid var(--line); }
+.day:last-child { border-bottom: 1px solid var(--line); }
+.day-name { color: var(--text-muted); }
+.track { position: relative; height: 100%; }
+.chore {
+  position: absolute; top: 0.5rem; bottom: 0.5rem;
+  left: calc((var(--from) - var(--start)) / var(--span) * 100%);
+  width: calc((var(--to) - var(--from)) / var(--span) * 100%);
+}
+.chore .ink {
+  position: absolute; inset: 0; border-radius: 3px;
+  background: repeating-linear-gradient(135deg, var(--line-strong) 0 1.5px, transparent 1.5px 5px), var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  transition: opacity 900ms var(--ease-out), transform 900ms var(--ease-out);
+  transform-origin: left center;
+}
+.chore .kept-box {
+  position: absolute; inset: 0; border: 1.5px solid var(--positive); border-radius: 3px;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 900ms var(--ease-out) 500ms;
+}
+.chore .what { position: absolute; left: calc(100% + 0.625rem); top: 50%; transform: translateY(-50%); white-space: nowrap; display: grid; }
+.chore .what > span { grid-area: 1 / 1; transition: opacity 500ms var(--ease-out); }
+.chore .what .was { color: var(--text-soft); }
+.chore .what .now { color: var(--positive); font-weight: 600; opacity: 0; transition-delay: 700ms; }
+.week.is-free .chore .ink { opacity: 0; transform: scaleX(0.96); }
+.week.is-free .chore .kept-box { clip-path: inset(0 0 0 0); }
+.week.is-free .chore .was { opacity: 0; }
+.week.is-free .chore .now { opacity: 1; }
+.week-total { display: flex; justify-content: space-between; margin-top: 0.875rem; color: var(--text-muted); }
+.week-total .num { color: var(--positive); font-size: 0.9375rem; opacity: 0; transition: opacity 600ms var(--ease-out) 1200ms; }
+.week.is-free .week-total .num { opacity: 1; }
+
+/* ── Closing CTA ──────────────────────────────────────────────────────────── */
+.closing { margin-top: var(--section-gap); }
+.closing-grid { border-top: 1px solid var(--line); padding-top: clamp(3rem, 7vw, 5rem); }
+.closing-grid { display: grid; grid-template-columns: 7fr 5fr; gap: 2rem 4rem; align-items: end; }
+.closing h2 { font-size: clamp(2.25rem, 5vw, 3.75rem); max-width: 13ch; }
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+.site-foot { margin-top: clamp(5rem, 10vw, 8rem); padding-bottom: 2.5rem; }
+.foot-grid { border-top: 1px solid var(--line); padding-top: 2rem; }
+.foot-grid { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 1.5rem 3rem; align-items: baseline; font-size: 0.875rem; color: var(--text-soft); }
+.foot-grid .wordmark { font-size: 1.375rem; }
+.foot-grid p { margin: 0; max-width: 34rem; }
+.foot-grid strong { color: var(--text); font-weight: 600; }
+.foot-meta { text-align: right; color: var(--text-muted); }
+
+/* ── Phone ────────────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  .hero-grid, .closing-grid, .evenings-grid { grid-template-columns: 1fr; }
+  .hero h1 { font-size: clamp(2.875rem, 13vw, 3.75rem); }
+  .lede { font-size: 1.0625rem; }
+  .waitlist form { flex-direction: column; }
+  .btn-primary { padding: 0.9375rem 1.25rem; }
+  .sheet { --sheet-h: 16rem; }
+  .beat { grid-template-columns: 1fr; gap: 0.625rem; padding: 1.75rem 0; }
+  .beat h3 { font-size: 1.5rem; }
+  .beat .proof { text-align: left; margin-top: 0.25rem; }
+  .foot-grid { grid-template-columns: 1fr; }
+  .foot-meta { text-align: left; }
+  .day { grid-template-columns: 2.5rem 1fr; }
+  .week-hours { grid-template-columns: 2.5rem 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; transition-delay: 0ms !important; animation-duration: 0ms !important; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#join">Skip to the waitlist</a>
+
+<header class="wrap site-head">
+  <a class="wordmark" href="#" aria-label="Cerna, home">Cerna</a>
+  <a class="head-link" href="#join">Join the waitlist</a>
+</header>
+
+<main>
+  <!-- Hero -->
+  <section class="wrap hero" aria-labelledby="hero-title">
+    <div class="hero-grid">
+      <h1 class="title" id="hero-title">Life happens outside the <em>spreadsheet.</em></h1>
+      <div>
+        <p class="lede">Cerna reads your bank statements, removes the duplicates, converts every currency and sorts each payment. You check the few it’s unsure of, then close the laptop.</p>
+        <div class="waitlist" id="join" data-waitlist>
+          <form novalidate>
+            <label class="sr-only" for="email-hero">Email address</label>
+            <input id="email-hero" type="email" name="email" autocomplete="email" placeholder="you@example.ch" required>
+            <button class="btn-primary" type="submit">Join the waitlist</button>
+          </form>
+          <p class="error" role="alert" hidden></p>
+          <p class="note">Launching in Switzerland first. One email when your place is ready.</p>
+          <div class="done" aria-live="polite">
+            <span class="done-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3.5 9.5l3.5 3.5 7.5-8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <div><p class="done-title">You’re on the list.</p><p class="done-sub">We’ll write to <span data-email></span> when there’s a place for you. Nothing else.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <figure class="sheet-stage" style="margin-left:0;margin-right:0">
+      <div class="sheet" id="sheet" role="img" aria-label="A cluttered budgeting spreadsheet resolves into one calm month: Home, Groceries, Getting around, Eating out, Travel and Other as coloured blocks, with the money kept left as empty paper.">
+        <div class="sheet-cells" aria-hidden="true"></div>
+        <div class="band-wrap" aria-hidden="true"><div class="band"></div></div>
+      </div>
+      <figcaption class="sheet-caption">
+        <span class="before">Your month, the way a spreadsheet keeps it.</span>
+        <span class="after">The same month in Cerna. What’s left is yours.</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- Beats -->
+  <section class="wrap beats" aria-labelledby="beats-title">
+    <h2 class="title beats-head" id="beats-title">The tidy-up happens without you.</h2>
+
+    <div class="beat">
+      <h3>Statements in, duplicates out.</h3>
+      <p>Drop in the PDF from your bank and the CSV from your card app. Months that overlap are matched, so nothing counts twice.</p>
+      <div class="proof"><span class="num">214</span> payments read<span class="muted"><span class="num">11</span> already there, set aside</span></div>
+    </div>
+    <div class="beat">
+      <h3>Every currency, in francs.</h3>
+      <p>The weekend in Milan and the train in London are converted at the rate of the day they left your account.</p>
+      <div class="proof"><span class="num">EUR&nbsp;42.00</span><span class="arrow" aria-hidden="true">→</span><span class="num">CHF&nbsp;39.48</span><span class="muted">rate of 14 September</span></div>
+    </div>
+    <div class="beat">
+      <h3>You make the few calls.</h3>
+      <p>Each payment arrives sorted. Cerna marks only the ones it isn’t sure of, and nothing is final until you say so.</p>
+      <div class="proof"><span class="num">3</span> to check this month<span class="muted">the rest already in place</span></div>
+    </div>
+  </section>
+
+  <!-- Evenings -->
+  <section class="wrap evenings" aria-labelledby="evenings-title">
+    <div class="evenings-grid">
+      <div>
+        <h2 class="title" id="evenings-title">Your evenings, given back.</h2>
+        <p class="lede">The chores that kept the spreadsheet honest are the ones Cerna does. What they leave behind is empty paper.</p>
+      </div>
+      <div class="week" id="week" role="img" aria-label="A week of evenings from 18:00 to 23:00. Finding a double entry on Monday, converting euros on Thursday and sorting the month on Sunday dissolve, leaving 3 hours 15 minutes free.">
+        <div class="week-hours" aria-hidden="true"><span></span>
+          <ol><li class="num" style="left:0">18:00</li><li class="num" style="left:20%">19</li><li class="num" style="left:40%">20</li><li class="num" style="left:60%">21</li><li class="num" style="left:80%">22</li><li class="num" style="left:100%">23:00</li></ol>
+        </div>
+        <div aria-hidden="true">
+          <div class="day"><span class="day-name">Mon</span><div class="track"><div class="chore" style="--from:19.25;--to:20"><span class="ink"></span><span class="kept-box"></span><span class="what"><span class="was">Find the double entry</span><span class="now">Yours</span></span></div></div></div>
+          <div class="day"><span class="day-name">Tue</span><div class="track"></div></div>
+          <div class="day"><span class="day-name">Wed</span><div class="track"></div></div>
+          <div class="day"><span class="day-name">Thu</span><div class="track"><div class="chore" style="--from:19;--to:19.5"><span class="ink"></span><span class="kept-box"></span><span class="what"><span class="was">Convert the euros</span><span class="now">Yours</span></span></div></div></div>
+          <div class="day"><span class="day-name">Fri</span><div class="track"></div></div>
+          <div class="day"><span class="day-name">Sat</span><div class="track"></div></div>
+          <div class="day"><span class="day-name">Sun</span><div class="track"><div class="chore" style="--from:18.5;--to:20.5"><span class="ink"></span><span class="kept-box"></span><span class="what"><span class="was">Sort the month</span><span class="now">Yours</span></span></div></div></div>
+        </div>
+        <div class="week-total" aria-hidden="true"><span>An ordinary week</span><span class="num">3 h 15 min back</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Closing CTA -->
+  <section class="wrap closing" aria-labelledby="closing-title">
+    <div class="closing-grid">
+      <h2 class="title" id="closing-title">Keep the overview. Lose the upkeep.</h2>
+      <div class="waitlist" data-waitlist>
+        <form novalidate>
+          <label class="sr-only" for="email-close">Email address</label>
+          <input id="email-close" type="email" name="email" autocomplete="email" placeholder="you@example.ch" required>
+          <button class="btn-primary" type="submit">Join the waitlist</button>
+        </form>
+        <p class="error" role="alert" hidden></p>
+        <p class="note">One email when your place is ready. No newsletter.</p>
+        <div class="done" aria-live="polite">
+          <span class="done-mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3.5 9.5l3.5 3.5 7.5-8" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div><p class="done-title">You’re on the list.</p><p class="done-sub">We’ll write to <span data-email></span> when there’s a place for you. Nothing else.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap site-foot">
+  <div class="foot-grid">
+    <span class="wordmark">Cerna</span>
+    <p><strong>Private by default.</strong> Your statements are read to build your ledger and for nothing else. No ads, no selling your data, no sharing without your say.</p>
+    <span class="foot-meta">Made for Europe · <span class="num">2026</span></span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  /* ── Waitlist ─────────────────────────────────────────── */
+  const valid = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+  document.querySelectorAll('[data-waitlist]').forEach(box => {
+    const form = box.querySelector('form'), input = box.querySelector('input'), err = box.querySelector('.error');
+    input.addEventListener('input', () => { input.removeAttribute('aria-invalid'); err.hidden = true; });
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const v = input.value.trim();
+      if (!valid(v)) {
+        input.setAttribute('aria-invalid', 'true');
+        err.textContent = v ? 'That email looks incomplete. Try name@example.ch.' : 'Enter your email to join.';
+        err.hidden = false; input.focus(); return;
+      }
+      // Static design: no request is sent. Mark every waitlist on the page as joined.
+      document.querySelectorAll('[data-waitlist]').forEach(b => {
+        b.classList.add('is-done');
+        b.querySelector('[data-email]').textContent = v;
+      });
+    });
+  });
+
+  /* ── Signature: spreadsheet → month ───────────────────── */
+  const SEGS = [
+    { k: 'Home', f: 0.31, c: 'var(--pig-slate)', chf: "2'480" },
+    { k: 'Groceries', f: 0.12, c: 'var(--pig-moss)', chf: "960" },
+    { k: 'Getting around', f: 0.07, c: 'var(--pig-umber)', chf: "560" },
+    { k: 'Eating out', f: 0.08, c: 'var(--pig-lily-rose)', chf: "640" },
+    { k: 'Travel', f: 0.09, c: 'var(--pig-wisteria)', chf: "720" },
+    { k: 'Other', f: 0.10, c: 'var(--pig-stone)', chf: "800" },
+    { k: 'Kept', f: 0.23, kept: true, chf: "1'840" },
+  ];
+  const WORDS = ['Migros', 'COOP-4410 ZH', 'SBB EasyRide', 'rent', 'Twint ?', 'Revolut', 'Digitec', 'Swisscom', 'Helsana', 'Denner', 'Lidl', 'Galaxus', 'gym', 'Uber', 'Spotify', 'Airbnb', 'tax?', 'misc', 'Zalando', 'IKEA'];
+  const NUMS = ['84.30', '−12.90', '2’480.00', '19.95', '−6.40', '132.10', '45.00', '1’020.00', '8.80', '67.25', '−240.00', '310.40', '27.90', '5.60'];
+  const ODD = [['EUR 42.00', ''], ['#REF!', 'err'], ['=SUMIF(C:C,', 'f'], ['dup?', 'flag'], ['=B7*0.94', 'f'], ['GBP 18.50', ''], ['??', 'flag'], ['#N/A', 'err'], ['check', 'flag'], ['=VLOOKUP(', 'f']];
+
+  const sheet = document.getElementById('sheet');
+  const cellsEl = sheet.querySelector('.sheet-cells');
+  const band = sheet.querySelector('.band');
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+  function build() {
+    const phone = innerWidth <= 760;
+    const cols = phone ? 6 : 14, rows = phone ? 8 : 9;
+    seed = 7;
+    sheet.style.setProperty('--cols', cols);
+    sheet.style.setProperty('--rows', rows);
+    const bandH = phone ? 64 : 88;
+    sheet.style.setProperty('--band-h', bandH + 'px');
+    cellsEl.innerHTML = '';
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (let c = 0; c < cols; c++) {
+      const h = document.createElement('div'); h.className = 'cell h'; h.innerHTML = `<span>${letters[c]}</span>`; cellsEl.appendChild(h);
+    }
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const d = document.createElement('div'); d.className = 'cell'; d.dataset.col = c;
+      const x = rnd(); let txt = '';
+      if (c % 4 === 0 && x < 0.85) { txt = `${String(1 + Math.floor(rnd() * 28)).padStart(2, '0')}.09`; d.classList.add('n'); }
+      else if (x < 0.30) { txt = WORDS[Math.floor(rnd() * WORDS.length)]; }
+      else if (x < 0.58) { txt = NUMS[Math.floor(rnd() * NUMS.length)]; d.classList.add('n'); }
+      else if (x < 0.70) { const o = ODD[Math.floor(rnd() * ODD.length)]; txt = o[0]; if (o[1]) d.classList.add(o[1]); }
+      d.innerHTML = `<span>${txt}</span>`;
+      cellsEl.appendChild(d);
+    }
+    band.innerHTML = SEGS.map(s => `<div class="seg${s.kept ? ' kept' : ''}" style="--c:${s.c || 'none'};flex-basis:calc(${s.f * 100}% - ${2 * (SEGS.length - 1) / SEGS.length}px)"><span class="seg-label">${s.k}<span class="num">CHF ${s.chf}</span></span></div>`).join('');
+    const H = sheet.clientHeight;
+    sheet.style.setProperty('--band-top', Math.round(H - bandH - (phone ? 44 : 48)) + 'px');
+    fitLabels();
+  }
+  function fitLabels() {
+    band.querySelectorAll('.seg').forEach(seg => {
+      const l = seg.querySelector('.seg-label'); l.hidden = false;
+      l.hidden = l.scrollWidth > seg.clientWidth - 4 && !seg.classList.contains('kept');
+    });
+  }
+  function segFor(frac) {
+    let acc = 0; for (const s of SEGS) { acc += s.f; if (frac < acc) return s; } return SEGS[SEGS.length - 1];
+  }
+
+  async function resolve() {
+    if (reduce) { sheet.classList.add('is-quiet', 'is-sorting', 'is-resolved'); return; }
+    await sleep(1400);
+    // 1. The noise goes quiet, cell by cell.
+    const data = [...cellsEl.querySelectorAll('.cell:not(.h)')];
+    data.forEach(d => { d.firstChild.style.transitionDelay = Math.round(rnd() * 900) + 'ms'; });
+    cellsEl.querySelectorAll('.cell.h > span').forEach(s => s.style.transitionDelay = '0ms');
+    sheet.classList.add('is-quiet');
+    await sleep(1300);
+    // 2. Each column takes the colour of the part of the month it belongs to.
+    const cols = +getComputedStyle(sheet).getPropertyValue('--cols');
+    sheet.classList.add('is-sorting');
+    data.forEach(d => {
+      const c = +d.dataset.col, s = segFor((c + 0.5) / cols);
+      d.style.transitionDelay = (c * 45) + 'ms';
+      d.classList.remove('flag');
+      d.style.backgroundColor = s.kept ? 'transparent' : getComputedStyle(sheet).getPropertyValue(s.c.slice(4, -1));
+    });
+    await sleep(650 + cols * 45);
+    // 3. The rows fold into one band.
+    const box = sheet.getBoundingClientRect();
+    const bandTop = parseFloat(getComputedStyle(sheet).getPropertyValue('--band-top'));
+    const bandH = parseFloat(getComputedStyle(sheet).getPropertyValue('--band-h'));
+    const anims = data.map(d => {
+      const r = d.getBoundingClientRect();
+      const dy = bandTop - (r.top - box.top), sy = bandH / r.height;
+      return d.animate([{ transform: 'none' }, { transform: `translateY(${dy}px) scaleY(${sy})` }],
+        { duration: 1000, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', fill: 'forwards', delay: (+d.dataset.col) * 25 });
+    });
+    cellsEl.querySelectorAll('.cell.h').forEach(h => h.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, fill: 'forwards' }));
+    await Promise.all(anims.map(a => a.finished));
+    // 4. The real month takes over; money kept draws its outline.
+    sheet.classList.add('is-resolved');
+  }
+
+  build();
+  let started = false;
+  const io = new IntersectionObserver(es => {
+    if (es.some(e => e.isIntersecting) && !started) { started = true; resolve(); io.disconnect(); }
+  }, { threshold: 0.4 });
+  io.observe(sheet);
+  let lastW = innerWidth;
+  addEventListener('resize', () => {
+    if (innerWidth === lastW) return; lastW = innerWidth;
+    if (sheet.classList.contains('is-resolved')) { build(); }
+    else if (!started) build();
+  });
+
+  /* ── Evenings: chores dissolve when the week is in view ─ */
+  const week = document.getElementById('week');
+  if (reduce) week.classList.add('is-free');
+  else new IntersectionObserver((es, o) => {
+    if (es.some(e => e.isIntersecting)) { setTimeout(() => week.classList.add('is-free'), 900); o.disconnect(); }
+  }, { threshold: 0.6 }).observe(week);
+})();
+</script>
+</body>
+</html>

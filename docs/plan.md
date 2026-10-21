@@ -2,7 +2,7 @@
 
 Status: direction chosen by the owner 2026-10-20 (his words in `design/marketing.md`); build not started when this was written. Evidence in `docs/research/` (six cited research runs and the copy brief). Five design mockups in `design/reference/d1..d5/`.
 
-Brief (owner): a light single page about having finances on autopilot whose one action is a waitlist; a stack that grows into a multi-page launch site; an email to owner@cerna.example on every signup; a sensible store for the list; the seed of a real brand.
+Brief (owner): a light single page about having finances on autopilot whose one action is a waitlist; a stack that grows into a multi-page launch site; an email to the owner's email (`ADMIN_NOTIFY_TO`, a secret) on every signup; a sensible store for the list; the seed of a real brand.
 
 ## Owner decisions
 

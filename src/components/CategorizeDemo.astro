@@ -8,7 +8,7 @@ import { copy } from '../content/copy';
     <span class="fig amount">{row.amount}</span>
     <span class="check" aria-hidden="true">{copy.check}</span>
   </li>)}</ul>
-  <div class="bottom"><p class="remember caption" aria-live="polite">{copy.categorize.unsure}</p><button type="button" class="confirm" data-confirm>{copy.categorize.confirm}</button><p class="confirmed" role="status" hidden>{copy.check} {copy.categorize.confirmed}</p></div>
+  <div class="bottom"><p class="remember caption" aria-live="polite">{copy.categorize.unsure}</p><button type="button" class="confirm" data-confirm>{copy.categorize.confirm}</button><p class="confirmed" role="status" hidden></p></div>
 </div>
 <script>
   import { copy } from '../content/copy';
@@ -30,7 +30,9 @@ import { copy } from '../content/copy';
     toggle.classList.remove('uncertain');
     toggle.dataset.pigment = option.dataset.category === 'Restaurants' ? 'ochre' : option.dataset.category === 'Groceries' ? 'sage' : 'violet';
     demo.querySelector<HTMLElement>('.remember')!.textContent = copy.categorize.remember;
-    demo.classList.remove('is-confirmed');
+    demo.classList.remove('is-confirmed', 'is-picked');
+    demo.classList.add('is-picked');
+    confirm.textContent = copy.categorize.confirmAll;
     confirm.hidden = false;
     confirmed.hidden = true;
     close(true);
@@ -54,6 +56,7 @@ import { copy } from '../content/copy';
   confirm.addEventListener('click', () => {
     close();
     demo.classList.add('is-confirmed');
+    confirmed.textContent = `${copy.check} ${demo.classList.contains('is-picked') ? copy.categorize.confirmedAll : copy.categorize.confirmed}`;
     confirm.hidden = true;
     confirmed.hidden = false;
     confirmed.tabIndex = -1;
@@ -62,21 +65,24 @@ import { copy } from '../content/copy';
 </script>
 <style>
   .rows { list-style: none; margin: 0; padding: 0; }
-  li { display: grid; grid-template-columns: minmax(0,1fr) auto 4.6em 12px; align-items: center; gap: 10px; min-height: 40px; border-bottom: 1px solid var(--cell); }
+  li { display: grid; grid-template-columns: minmax(0,1fr) auto 6.4em 12px; align-items: center; gap: 10px; min-height: 40px; border-bottom: 1px solid var(--cell); }
   .merchant { font-weight: 500; }
   .amount { font-size: .85rem; text-align: right; }
   .picker { position: relative; justify-self: end; }
   .cat { justify-self: end; }
-  button.cat { min-height: 28px; border: 1px solid transparent; cursor: pointer; }
+  button.cat { position: relative; min-height: 28px; border: 1px solid transparent; cursor: pointer; }
+  button.cat::after { content: ''; position: absolute; inset: -8px -4px; }
   button.cat.uncertain { border: 1px dashed var(--muted); background: var(--sheet); color: var(--graphite); }
   .menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 5; min-width: 150px; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px; box-shadow: 0 12px 28px -12px #17191c40; }
   [role='option'] { display: flex; align-items: center; min-height: 40px; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
   [role='option']:hover, [role='option']:focus { background: var(--wash); outline: none; }
   [aria-selected='true'] { font-weight: 600; }
   .check { color: var(--done); opacity: 0; transition: opacity .3s; }
-  .is-confirmed .check { opacity: 1; }
+  .is-confirmed li .check { opacity: 1; }
+  .is-confirmed:not(.is-picked) li:has(.uncertain) .check { opacity: 0; }
   .bottom { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 6px; }
-  .confirm { min-height: 36px; border: 0; border-radius: 999px; padding: 6px 14px; background: var(--ink); color: var(--paper); font: 500 .85rem var(--display); }
-  .confirm:hover { background: var(--cobalt); }
+  .confirm { position: relative; min-height: 36px; border: 1px solid var(--ink); border-radius: 999px; padding: 6px 14px; background: transparent; color: var(--ink); font: 500 .85rem var(--display); transition: background .15s, color .15s; }
+  .confirm::after { content: ''; position: absolute; inset: -4px 0; }
+  .confirm:hover { background: var(--ink); color: var(--paper); }
   .confirmed { font-size: .85rem; color: var(--done); font-weight: 500; }
 </style>

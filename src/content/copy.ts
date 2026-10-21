@@ -50,17 +50,18 @@ export const copy = {
   },
   categorize: {
     rows: [
-      { merchant: 'Migros', amount: '−84.30', category: 'Groceries', pigment: 'sage' },
-      { merchant: 'SBB', amount: '−42.00', category: 'Transport', pigment: 'slate' },
-      { merchant: 'TWINT', amount: '−36.50', category: 'Restaurants', pigment: 'ochre', uncertain: true },
-      { merchant: 'Coop', amount: '−12.95', category: 'Groceries', pigment: 'sage' },
+      { merchant: 'Migros', amount: 'CHF 84.30', category: 'Groceries', pigment: 'sage' },
+      { merchant: 'SBB', amount: 'CHF 42.00', category: 'Transport', pigment: 'slate' },
+      { merchant: 'TWINT', amount: 'CHF 36.50', category: 'Restaurants', pigment: 'ochre', uncertain: true },
+      { merchant: 'Coop', amount: 'CHF 12.95', category: 'Groceries', pigment: 'sage' },
     ],
-    uncertain: 'Restaurants?', categories: ['Restaurants', 'Groceries', 'Other'], menu: 'Category for TWINT', confirm: 'Confirm all 4', confirmed: '4 confirmed', remember: 'Cerna will remember this.', unsure: '1 to check',
+    uncertain: 'Restaurants?', categories: ['Restaurants', 'Groceries', 'Other'], menu: 'Category for TWINT', confirm: 'Confirm 3', confirmAll: 'Confirm all 4', confirmed: '3 confirmed · TWINT waits for you', confirmedAll: '4 confirmed', remember: 'Cerna will remember this.', unsure: '1 to check',
   },
   checkIn: {
-    heading: 'September', total: "CHF 4'812", status: 'Within your usual', range: "Usual range: CHF 4'400–5'200",
+    heading: 'October', total: "CHF 4'812", status: 'Within your usual', range: "Usual range: CHF 4'400–5'200",
     first: 'Restaurants CHF 140 above usual.', detail: 'Three more visits, similar bills.',
     choices: ['One-off', 'Keep an eye on it'],
+    outcomes: ['Noted. Cerna won’t flag this again.', 'Cerna will mention it next month.'],
   },
   clutter: ['#REF!', 'dup? check UBS', '=SUMIF(C:C,…)', 'EUR 42.00', 'CHF 84.30', 'fix FX', '??', 'COOP-4521', 'Revolut', '=C41*0.937', '14.09.', 'TWINT *ANNA', '#VALUE!', 'copy from tab 2', 'CHF 249.00', 'SBB EASYRIDE'],
 } as const;

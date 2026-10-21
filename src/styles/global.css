@@ -5,7 +5,7 @@
 
 /* Tokens follow design/reference/d5-design-led; the category pigments are the pop of colour. */
 :root {
-  --paper: #fafaf7; --sheet: #fff; --ink: #17191c; --graphite: #555a60; --muted: #6b7076;
+  --paper: #fafaf7; --sheet: #fff; --ink: #17191c; --graphite: #555a60; --muted: #63686e;
   --cell: #e4e5e0; --cell-head: #f1f1ec; --line: #cdcfc8;
   --cobalt: #2f44a6; --cobalt-hover: #26388c; --wash: #e9ecf8; --done: #1f6b52; --dup: #fbf6ec; --error: #9a3412;
   --sage: #dfe8d6; --slate: #dbe5ef; --rose: #f1dcdc; --ochre: #f3e5c1; --violet: #e5e0f0;
@@ -19,7 +19,7 @@
   --step-2: clamp(1.8rem, 1.4rem + 1.6vw, 2.6rem);
   --step-4: clamp(2.9rem, 1.6rem + 5.4vw, 6.4rem);
   --gutter: clamp(16px, 4vw, 56px); --measure: 34rem;
-  --cell-w: clamp(56px, 7vw, 112px); --cell-h: 36px;
+  --cols: 12; --cell-h: 36px;
   --radius: 6px; --ease: cubic-bezier(.2,.7,.2,1);
 }
 @theme inline {

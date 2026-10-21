@@ -17,12 +17,12 @@ const cells = Array.from({ length: 120 }, (_, i) => ({ text: copy.clutter[(i * 7
 <style>
   .grid { position: absolute; inset: -88px 0 0; z-index: -1; pointer-events: none; overflow: hidden; opacity: var(--grid-o, 1);
     background-image: linear-gradient(to right, var(--cell) 1px, transparent 1px), linear-gradient(to bottom, var(--cell) 1px, transparent 1px);
-    background-size: var(--cell-w) var(--cell-h);
-    background-position: calc(var(--gutter) - 1px) 0;
+    background-size: var(--cw) var(--cell-h);
+    background-position: calc(var(--x0) - 1px) 0;
     mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
     transition: opacity .2s linear; }
-  .clutter { position: absolute; inset: 0 0 0 var(--gutter); display: none; font: 400 .6875rem var(--figure); color: var(--muted); }
-  .cell { position: absolute; left: calc(var(--c) * var(--cell-w)); top: calc(var(--r) * var(--cell-h)); width: var(--cell-w); height: var(--cell-h); line-height: var(--cell-h); padding: 0 7px; overflow: hidden; white-space: nowrap; text-overflow: clip; }
+  .clutter { position: absolute; inset: 0 0 0 var(--x0); display: none; font: 400 .6875rem var(--figure); color: var(--muted); }
+  .cell { position: absolute; left: calc(var(--c) * var(--cw)); top: calc(var(--r) * var(--cell-h)); width: var(--cw); height: var(--cell-h); line-height: var(--cell-h); padding: 0 7px; overflow: hidden; white-space: nowrap; text-overflow: clip; }
   .warn { background: var(--ochre); color: var(--ochre-ink); }
   .err { color: #a23f4c; }
   :global(.intro-play) .clutter { display: block; }

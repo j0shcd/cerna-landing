@@ -20,7 +20,7 @@ import WaitlistForm from './WaitlistForm.astro';
 </section>
 <style>
   /* The backdrop columns and the hero columns are the same twelve columns of the content box. */
-  .hero { container-type: inline-size; --content-w: calc(min(100cqw, 1280px) - 2 * var(--gutter)); --cw: calc(var(--content-w) / var(--cols)); --x0: calc((100cqw - min(100cqw, 1280px)) / 2 + var(--gutter)); position: relative; isolation: isolate; padding: clamp(28px,6vh,72px) 0 clamp(64px,10vh,120px); }
+  .hero { container-type: inline-size; --content-w: calc(min(100cqw, 1280px) - var(--pad-l) - var(--pad-r)); --cw: calc(var(--content-w) / var(--cols)); --x0: calc((100cqw - min(100cqw, 1280px)) / 2 + var(--pad-l)); position: relative; isolation: isolate; padding: clamp(28px,6vh,72px) 0 clamp(64px,10vh,120px); }
   .formula { display: flex; max-width: calc(var(--cw) * 7 - 24px); margin-bottom: clamp(28px,5vh,56px); background: var(--sheet); border: 1px solid var(--cell); border-radius: var(--radius); font: 400 .85rem/1.4 var(--figure); color: var(--graphite); overflow: hidden; }
   .ref { padding: 8px 14px; border-right: 1px solid var(--cell); background: var(--cell-head); color: var(--ink); }
   .fx { padding: 8px 12px; border-right: 1px solid var(--cell); font-style: italic; color: var(--muted); }

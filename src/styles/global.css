@@ -18,7 +18,7 @@
   --step-1: clamp(1.3rem, 1.15rem + .6vw, 1.6rem);
   --step-2: clamp(1.8rem, 1.4rem + 1.6vw, 2.6rem);
   --step-4: clamp(2.9rem, 1.6rem + 5.4vw, 6.4rem);
-  --gutter: clamp(16px, 4vw, 56px); --measure: 34rem;
+  --gutter: clamp(16px, 4vw, 56px); --pad-l: max(var(--gutter), env(safe-area-inset-left)); --pad-r: max(var(--gutter), env(safe-area-inset-right)); --measure: 34rem;
   --cols: 12; --cell-h: 36px;
   --radius: 6px; --ease: cubic-bezier(.2,.7,.2,1);
 }
@@ -41,7 +41,7 @@
   ::selection { background: var(--wash); color: var(--ink); }
 }
 @layer components {
-  .wrap { width: 100%; max-width: 1280px; margin-inline: auto; padding-inline: max(var(--gutter), env(safe-area-inset-left)) max(var(--gutter), env(safe-area-inset-right)); }
+  .wrap { width: 100%; max-width: 1280px; margin-inline: auto; padding-inline: var(--pad-l) var(--pad-r); }
   .wordmark { font: 600 1.5rem var(--display); letter-spacing: -.02em; text-decoration: none; }
   .fig { font-family: var(--figure); font-variant-numeric: tabular-nums; }
   .caption { font: 400 var(--step--1)/1.4 var(--figure); color: var(--muted); }

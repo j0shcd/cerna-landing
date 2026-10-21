@@ -31,10 +31,13 @@ const s = copy.statement;
   const later = (fn: () => void, ms: number) => timers.push(window.setTimeout(fn, ms));
   function reset() {
     timers.forEach(clearTimeout); timers = [];
+    // Jump to the raw state without transitions, then reserve that five-row height so
+    // neither the reset nor the duplicate collapsing ever moves the page.
+    card.classList.add('instant');
     rows.forEach(row => { row.className = ''; });
-    // Reserve the five-row height so the duplicate collapsing never moves the page.
-    card.style.minHeight = '';
     card.parentElement!.style.minHeight = `${card.offsetHeight}px`;
+    void card.offsetHeight;
+    card.classList.remove('instant');
     status.textContent = s.reading;
     sum.textContent = s.found;
   }
@@ -94,6 +97,7 @@ const s = copy.statement;
   .cat { opacity: 0; transform: scale(.92); transition: opacity .4s, transform .4s var(--ease); }
   .why { font-size: .72rem; color: var(--muted); opacity: 0; transition: opacity .4s .15s; }
   [data-dup] .why { opacity: 1; }
+  .instant li, .instant li * { transition: none !important; }
   li.ok .raw { opacity: 0; transform: translateY(-6px); }
   li.ok .clean { opacity: 1; transform: none; }
   li.ok .amt.fx .from { opacity: 0; transform: translateY(-6px); }

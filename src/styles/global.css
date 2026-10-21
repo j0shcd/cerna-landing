@@ -7,7 +7,10 @@
 :root {
   --paper: #fafaf7; --sheet: #fff; --ink: #17191c; --graphite: #555a60; --muted: #63686e;
   --cell: #e4e5e0; --cell-head: #f1f1ec; --line: #cdcfc8;
-  --cobalt: #2f44a6; --cobalt-hover: #26388c; --wash: #e9ecf8; --done: #1f6b52; --dup: #fbf6ec; --error: #9a3412;
+  --cobalt: #2f44a6; --cobalt-hover: #26388c; --on-cobalt: #fff; --wash: #e9ecf8; --done: #1f6b52; --dup: #fbf6ec; --error: #9a3412;
+  --attention: #8a5e00; --attention-line: #d9c08a; --cell-err: #a23f4c; --mark: #fff0b8;
+  --dot-groceries: #7c8d68; --dot-transport: #708aa0; --dot-restaurants: #a07f62; --dot-other: #8c857d;
+  --shadow-card: 0 1px 0 #17191c0a, 0 30px 60px -40px #17191c59; --shadow-field: 0 1px 0 #17191c08, 0 8px 24px -16px #17191c40; --shadow-pop: 0 12px 28px -12px #17191c40;
   --sage: #dfe8d6; --slate: #dbe5ef; --rose: #f1dcdc; --ochre: #f3e5c1; --violet: #e5e0f0;
   --sage-ink: #3d5a2a; --slate-ink: #2c4a66; --rose-ink: #7a3436; --ochre-ink: #6b4a00; --violet-ink: #4a3f7a;
   --display: 'Familjen Grotesk Variable', system-ui, sans-serif;
@@ -21,6 +24,32 @@
   --gutter: clamp(16px, 4vw, 56px); --pad-l: max(var(--gutter), env(safe-area-inset-left)); --pad-r: max(var(--gutter), env(safe-area-inset-right)); --measure: 34rem;
   --cols: 12; --cell-h: 36px;
   --radius: 6px; --ease: cubic-bezier(.2,.7,.2,1);
+  color-scheme: light;
+}
+/* Dark follows the app's warm-ink theme (cerna-app DESIGN.md §2): never pure black, elevation from lightness, not shadow. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --paper: #1c1915; --sheet: #25211c; --ink: #ece4d5; --graphite: #b3a898; --muted: #9a907f;
+    --cell: #322d27; --cell-head: #2a2520; --line: #4a4239;
+    --cobalt: #93aeea; --cobalt-hover: #afc3f0; --on-cobalt: #1c1915; --wash: #2a3041; --done: #7fbfa2; --dup: #332b1e; --error: #ee8b95;
+    --attention: #d6a853; --attention-line: #6e5a32; --cell-err: #ee8b95; --mark: #5a4a1f;
+    --sage: #2f3628; --slate: #27313b; --rose: #3b2b2c; --ochre: #3b3123; --violet: #2f2b3b;
+    --sage-ink: #bccaa9; --slate-ink: #abc1d6; --rose-ink: #e3b6b7; --ochre-ink: #e3c27f; --violet-ink: #c5bee2;
+    --dot-groceries: #8ea079; --dot-transport: #829cb3; --dot-restaurants: #b39174; --dot-other: #9e978f;
+    --shadow-card: 0 0 0 1px #00000040; --shadow-field: none; --shadow-pop: 0 12px 28px -12px #000000a0;
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #1c1915; --sheet: #25211c; --ink: #ece4d5; --graphite: #b3a898; --muted: #9a907f;
+  --cell: #322d27; --cell-head: #2a2520; --line: #4a4239;
+  --cobalt: #93aeea; --cobalt-hover: #afc3f0; --on-cobalt: #1c1915; --wash: #2a3041; --done: #7fbfa2; --dup: #332b1e; --error: #ee8b95;
+  --attention: #d6a853; --attention-line: #6e5a32; --cell-err: #ee8b95; --mark: #5a4a1f;
+  --sage: #2f3628; --slate: #27313b; --rose: #3b2b2c; --ochre: #3b3123; --violet: #2f2b3b;
+  --sage-ink: #bccaa9; --slate-ink: #abc1d6; --rose-ink: #e3b6b7; --ochre-ink: #e3c27f; --violet-ink: #c5bee2;
+  --dot-groceries: #8ea079; --dot-transport: #829cb3; --dot-restaurants: #b39174; --dot-other: #9e978f;
+  --shadow-card: 0 0 0 1px #00000040; --shadow-field: none; --shadow-pop: 0 12px 28px -12px #000000a0;
 }
 @theme inline {
   --color-paper: var(--paper); --color-ink: var(--ink); --color-cobalt: var(--cobalt);
@@ -46,7 +75,7 @@
   .fig { font-family: var(--figure); font-variant-numeric: tabular-nums; }
   .caption { font: 400 var(--step--1)/1.4 var(--figure); color: var(--muted); }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-  .btn { appearance: none; min-height: 44px; border: 0; border-radius: var(--radius); background: var(--cobalt); color: #fff; font: 600 1rem/1.2 var(--display); padding: 12px 18px; white-space: nowrap; transition: transform .15s var(--ease), background .15s; }
+  .btn { appearance: none; min-height: 44px; border: 0; border-radius: var(--radius); background: var(--cobalt); color: var(--on-cobalt); font: 600 1rem/1.2 var(--display); padding: 12px 18px; white-space: nowrap; transition: transform .15s var(--ease), background .15s; }
   .btn:hover { background: var(--cobalt-hover); }
   .btn:active { transform: translateY(1px); }
   .link-button { appearance: none; background: none; border: 0; min-height: 44px; padding: 4px 0; font: 500 .85rem var(--display); color: var(--cobalt); text-decoration: underline; text-underline-offset: 3px; }

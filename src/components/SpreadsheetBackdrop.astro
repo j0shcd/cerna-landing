@@ -24,7 +24,7 @@ const cells = Array.from({ length: 120 }, (_, i) => ({ text: copy.clutter[(i * 7
   .clutter { position: absolute; inset: 0 0 0 var(--x0); display: none; font: 400 .6875rem var(--figure); color: var(--muted); }
   .cell { position: absolute; left: calc(var(--c) * var(--cw)); top: calc(var(--r) * var(--cell-h)); width: var(--cw); height: var(--cell-h); line-height: var(--cell-h); padding: 0 7px; overflow: hidden; white-space: nowrap; text-overflow: clip; }
   .warn { background: var(--ochre); color: var(--ochre-ink); }
-  .err { color: #a23f4c; }
+  .err { color: var(--cell-err); }
   :global(.intro-play) .clutter { display: block; }
   :global(.intro-play) .cell { animation: clear-cell 380ms var(--ease) var(--delay) both; }
   @keyframes clear-cell { from { opacity: 1; } to { opacity: 0; transform: translateY(-6px); filter: blur(2px); } }

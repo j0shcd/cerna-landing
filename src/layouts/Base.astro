@@ -14,7 +14,9 @@ import { copy } from '../content/copy';
     <meta property="og:type" content="website" />
     <meta property="og:title" content={copy.title} />
     <meta property="og:description" content={copy.description} />
-    <meta name="theme-color" content="#fafaf7" />
+    <meta name="theme-color" content="#fafaf7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1915" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     {[displayFont, bodyFont, figureFont].map(font => <link rel="preload" href={font} as="font" type="font/woff2" crossorigin="anonymous" />)}
     <title>{copy.title}</title>

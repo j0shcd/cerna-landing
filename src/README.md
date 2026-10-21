@@ -43,7 +43,13 @@ browser service is used.
 npx astro build
 node --test src/scripts/waitlist.test.mjs
 npx tsc --noEmit --types @cloudflare/workers-types
+npm run test:e2e   # Playwright 1.60: builds, serves dist via e2e/serve.mjs on :4329, headless
 ```
+
+The browser checks in `e2e/` cover what only a real layout engine shows: the
+intro never moves the section below the hero, and on a phone the statement
+sequence waits until half the card is visible. Each was confirmed to fail with
+its bug reintroduced.
 
 The Node tests exercise the built form module with a small DOM adapter. They
 cover the JSON contract, shared pending/success states, error retention, failed

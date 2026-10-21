@@ -25,9 +25,22 @@ const describedBy = note ? `${id}-note ${id}-status` : `${id}-status`;
   import '../scripts/waitlist';
 </script>
 <style>
-  .waitlist { max-width: 30rem; scroll-margin-top: 30px; }
-  .row { display: flex; align-items: stretch; gap: 8px; background: var(--sheet); border: 1px solid var(--line); border-radius: calc(var(--radius) + 4px); padding: 6px; box-shadow: 0 1px 0 #17191c08, 0 8px 24px -16px #17191c40; transition: border-color .15s; }
+  @property --beam { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+  .waitlist { --beam-tip: color-mix(in oklab, var(--cobalt) 35%, var(--sheet)); max-width: 30rem; scroll-margin-top: 30px; }
+  .row { display: flex; align-items: stretch; gap: 8px; background: var(--sheet); border: 1px solid var(--line); border-radius: calc(var(--radius) + 4px); padding: 6px; box-shadow: var(--shadow-field); transition: border-color .15s; }
   .row:focus-within { border-color: var(--cobalt); }
+  /* Called from the header link: one beam of light runs around the field, a ring ripples out, then it rests in focus. */
+  .row { position: relative; }
+  .row::before, .row::after { content: ''; position: absolute; pointer-events: none; border-radius: inherit; opacity: 0; }
+  .row::before { inset: -2px; padding: 2px; background: conic-gradient(from var(--beam), transparent 0 58%, var(--beam-tip) 76%, var(--cobalt) 93%, transparent 100%);
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; -webkit-mask-composite: xor; }
+  .row::after { inset: -1px; box-shadow: 0 0 0 0 var(--cobalt); }
+  :global(.is-called) .row { animation: hold-border 1.1s linear both; }
+  :global(.is-called) .row::before { animation: beam 1.1s cubic-bezier(.4,0,.2,1) both; }
+  :global(.is-called) .row::after { animation: ripple 1s var(--ease) .75s both; }
+  @keyframes hold-border { 0%, 82% { border-color: var(--line); } 100% { border-color: var(--cobalt); } }
+  @keyframes beam { 0% { --beam: 0deg; opacity: 0; } 12% { opacity: 1; } 80% { opacity: 1; } 100% { --beam: 360deg; opacity: 0; } }
+  @keyframes ripple { 0% { opacity: .35; box-shadow: 0 0 0 0 var(--cobalt); } 100% { opacity: 0; box-shadow: 0 0 0 12px var(--cobalt); } }
   .fx { display: flex; align-items: center; padding: 0 4px 0 10px; color: var(--muted); font-size: .85rem; font-style: italic; }
   input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 10px 8px; color: var(--ink); font: 500 1rem var(--display); outline: none; }
   input::placeholder { color: var(--muted); }

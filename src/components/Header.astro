@@ -3,8 +3,42 @@ import { copy } from '../content/copy';
 ---
 <header class="wrap site-header">
   <a class="wordmark" href="/">{copy.brand}</a>
-  <a class="join" href="/#join">{copy.form.button}</a>
+  <a class="join" href="/#join" data-call-waitlist>{copy.form.button}</a>
 </header>
+<script>
+  // "Join the waitlist" brings the nearest form into view, focuses it and lights it up once.
+  // Pages without a form (legal pages) follow the link to /#join, which plays the same call on arrival.
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const forms = () => [...document.querySelectorAll<HTMLElement>('[data-waitlist]')];
+  const inView = (element: HTMLElement) => { const r = element.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; };
+  function light(box: HTMLElement) {
+    box.querySelector<HTMLInputElement>('[name="email"]')?.focus({ preventScroll: true });
+    if (reduce.matches || box.classList.contains('is-done')) return;
+    box.classList.remove('is-called');
+    void box.offsetWidth;
+    box.classList.add('is-called');
+    window.setTimeout(() => box.classList.remove('is-called'), 1900);
+  }
+  function call(box: HTMLElement) {
+    if (inView(box)) { light(box); return; }
+    let done = false;
+    const finish = () => { if (done) return; done = true; light(box); };
+    addEventListener('scrollend', finish, { once: true });
+    window.setTimeout(finish, 900);
+    box.scrollIntoView({ behavior: reduce.matches ? 'auto' : 'smooth', block: 'center' });
+  }
+  document.querySelector<HTMLAnchorElement>('[data-call-waitlist]')?.addEventListener('click', event => {
+    const list = forms();
+    if (!list.length) return;
+    event.preventDefault();
+    call(list.find(inView) ?? list[0]!);
+    history.replaceState(null, '', '#join');
+  });
+  if (location.hash === '#join' && forms().length) {
+    const delay = document.documentElement.classList.contains('intro-play') ? 1500 : 150;
+    window.setTimeout(() => call(forms()[0]!), delay);
+  }
+</script>
 <style>
   .site-header { position: relative; z-index: 3; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-block: 22px; }
   .wordmark { display: inline-flex; align-items: center; min-height: 44px; }

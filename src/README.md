@@ -30,7 +30,7 @@ Redirect feedback needs JavaScript; the native submission itself does not.
 Server-rendered HTML contains the final visual state. The early head script
 opts into the intro only on the first session visit, when motion is allowed
 and session storage is available. A blocked storage API leaves the final state.
-The statement demo plays once after that intro or on Replay. Scroll reveals
+The statement demo plays once on that first visit, when the card is half in view (so phones see it), or on Replay; its wrapper keeps the five-row height so the collapsing duplicate never moves the page. Header, hero and backdrop share one twelve-column grid of the content box (`--cols`, `--cw`, `--x0` on `.hero`). Scroll reveals
 hide only sections below the viewport. There are no animation loops (the formula caret blinks six times and stops).
 
 Fonts use only the three installed Latin variable WOFF2 files, preloaded from

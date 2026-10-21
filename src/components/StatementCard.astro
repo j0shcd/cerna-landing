@@ -32,6 +32,9 @@ const s = copy.statement;
   function reset() {
     timers.forEach(clearTimeout); timers = [];
     rows.forEach(row => { row.className = ''; });
+    // Reserve the five-row height so the duplicate collapsing never moves the page.
+    card.style.minHeight = '';
+    card.parentElement!.style.minHeight = `${card.offsetHeight}px`;
     status.textContent = s.reading;
     sum.textContent = s.found;
   }
@@ -57,8 +60,18 @@ const s = copy.statement;
   }
   card.querySelector('[data-replay]')!.addEventListener('click', play);
   reduce.addEventListener('change', () => { if (reduce.matches) finish(); });
-  // The finished state is server-rendered; the sequence plays once on a first visit, under the intro.
-  if (document.documentElement.classList.contains('intro-play')) { reset(); window.setTimeout(play, 1000); }
+  // The finished state is server-rendered. On a first visit the sequence plays once the card is
+  // half in view (after the intro has settled), so phone visitors see it too.
+  if (document.documentElement.classList.contains('intro-play') && 'IntersectionObserver' in window) {
+    reset();
+    const notBefore = performance.now() + 1000;
+    const observer = new IntersectionObserver(entries => {
+      if (!entries[0]!.isIntersecting) return;
+      observer.disconnect();
+      window.setTimeout(play, Math.max(0, notBefore - performance.now()));
+    }, { threshold: .5 });
+    observer.observe(card);
+  }
 </script>
 <style>
   .statement { background: var(--sheet); border: 1px solid var(--cell); border-radius: 10px; box-shadow: 0 1px 0 #17191c0a, 0 30px 60px -40px #17191c59; overflow: hidden; }

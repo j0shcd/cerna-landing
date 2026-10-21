@@ -47,6 +47,10 @@ Privacy notice and impressum are drafted (`src/content/legal.ts`, pages `/privac
 
 The owner asked for the page to be "pretty much 1-1 with design 5 for a clean base" while keeping the choices in `design/marketing.md`. The earlier build had drifted (spreadsheet row and column headers, a coloured gradient band behind the features, heavy demo cards with "Sample data" labels). It now uses D5's tokens, grid, formula bar, statement card and its tidy-up sequence, ruled three-beat section, closing and footer, with the owner's copy, D3's first-visit clutter clearing, D4's `fx` nod in the form, D1's import files plus a Revolut EUR line, compact D3 categorise and check-in visuals, and pastel category pills as the pop of colour. Details in `src/README.md`. An adversarial design review of this version is in `docs/plans/2026-10-21-design-review-d5-rebuild.md`; the owner's decisions from it are implemented, with the beat-3 result lines awaiting his read and a bank-coverage line still open, using the new global `adversarial-design-review` skill.
 
+## Review visual, dark theme, waitlist call (owner, 2026-10-21)
+
+The owner asked for the sorting visual to look like the real app, a dark mode, and a short highlight on the waitlist form when the header link is used. All three are built (see `src/README.md`, "Themes and the review demo"). Browser tests cover them in `e2e/landing.spec.ts` (written by Codex): the header call, reduced motion, legal-page arrival, modified clicks, focus after signup, native POSTs without JavaScript, the review queue by pointer and keyboard, and WCAG AA text contrast in both themes. Each check was confirmed to fail with its bug reintroduced.
+
 ## Next bounded step
 
 Owner reviews the page (the intro animation, the colour wash behind the feature columns, the demos), supplies the accounts and domain, and decides the privacy page content. Then deploy to a preview, send one real signup end to end, and add the privacy page before sharing the link.

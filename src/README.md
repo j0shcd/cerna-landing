@@ -18,6 +18,24 @@ keeps an "Example:" accessible name.
 The financial examples are sample data. In particular, the monthly summary is
 an intended product experience, not proof of implemented finance-app behavior.
 
+## Themes and the review demo
+
+Light is the default. Dark follows the system setting (`prefers-color-scheme`),
+and `<html data-theme="light|dark">` can force either; there is no toggle. The
+dark palette is the app's warm ink (`cerna-app/DESIGN.md` §2), and every
+colour, shadow and category dot is a token in `styles/global.css`, so nothing
+outside it hard-codes a colour.
+
+The "It sorts. You nod." visual is a small copy of the app's Review queue
+(`cerna-app` `ReviewCard.svelte`): merchant and amount, date and account, the
+category with its pigment dot, "Worth checking" on the unsure row, and one
+outlined Approve. Only the unsure row's category is interactive.
+
+The header "Join the waitlist" link brings the nearest form into view, focuses
+its email field and adds `.is-called` for one beam-and-ripple pass. Without
+JavaScript it is a plain link to `/#join`; arriving on `/#join` from another
+page plays the same call.
+
 ## Forms and motion
 
 Both forms post natively to `/api/waitlist`; the enhancement sends the agreed
@@ -26,6 +44,9 @@ Success updates both instances. API errors preserve the address, and malformed
 responses or network failures show `save_failed`. The native redirect carries
 no email, so `?joined=1` uses “You’re on the list. We’ll write when Cerna opens.”
 Redirect feedback needs JavaScript; the native submission itself does not.
+
+After signup the header link focuses the visible confirmation instead of the
+hidden field, and modified clicks (Cmd/Ctrl/Shift/Alt) keep native link behaviour.
 
 Server-rendered HTML contains the final visual state. The early head script
 opts into the intro only on the first session visit, when motion is allowed
@@ -41,6 +62,7 @@ browser service is used.
 
 ```sh
 npx astro build
+npx vitest run
 node --test src/scripts/waitlist.test.mjs
 npx tsc --noEmit --types @cloudflare/workers-types
 npm run test:e2e   # Playwright 1.60: builds, serves dist via e2e/serve.mjs on :4329, headless
@@ -50,6 +72,12 @@ The browser checks in `e2e/` cover what only a real layout engine shows: the
 intro never moves the section below the hero, and on a phone the statement
 sequence waits until half the card is visible. Each was confirmed to fail with
 its bug reintroduced.
+
+`e2e/landing.spec.ts` adds header focus, call timing, hash navigation, closing-form
+scroll preservation, reduced motion, legal-page arrival, pointer and keyboard
+review decisions, and light/dark text contrast. It also covers modified clicks,
+focus after signup, and both native POSTs with JavaScript disabled. Network
+responses are intercepted; these checks do not submit real signups.
 
 The Node tests exercise the built form module with a small DOM adapter. They
 cover the JSON contract, shared pending/success states, error retention, failed

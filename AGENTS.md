@@ -1,3 +1,7 @@
+## Repo layout
+
+This repo is `Cerna/cerna-landing`, a sibling of `Cerna/cerna-app` (the product). Plan: `docs/plan.md`; research: `docs/research/`; copy brief: `design/marketing.md`; mockups: `design/reference/`. Earlier locations (`~/Developer/cerna-site`, landing files inside the app repo) are obsolete.
+
 ## Development
 
 When starting the dev server, use background mode:

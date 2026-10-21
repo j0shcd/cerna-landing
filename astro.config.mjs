@@ -7,5 +7,7 @@ export default defineConfig({
   output: 'static',
   vite: {
     plugins: [tailwindcss()],
+    // Keep the churny dependency cache out of iCloud sync (see the icloud-sync skill).
+    cacheDir: 'node_modules/.vite.nosync',
   },
 });

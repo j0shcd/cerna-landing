@@ -8,9 +8,9 @@ const s = copy.statement;
     <span class="st-status fig" data-status><b>{s.doneLead}</b> · {s.done}</span>
   </div>
   <ul class="tx">
-    {s.rows.map(row => <li class={'duplicate' in row ? 'gone' : 'ok'} data-dup={'duplicate' in row ? '' : undefined}>
+    {s.rows.map(row => <li class={'duplicate' in row ? 'gone' : 'ok'} data-dup={'duplicate' in row ? '' : undefined} aria-hidden={'duplicate' in row ? 'true' : undefined}>
       <span class="name"><span class="raw" aria-hidden="true">{row.raw}</span><span class="clean">{row.clean}</span></span>
-      <span class:list={['amt fig', { fx: 'converted' in row }]}><span class="from">{row.amount}</span>{'converted' in row && <span class="to">{row.converted}</span>}</span>
+      <span class:list={['amt fig', { fx: 'converted' in row }]}><span class="from" aria-hidden={'converted' in row ? 'true' : undefined}>{row.amount}</span>{'converted' in row && <span class="to">{row.converted}</span>}</span>
       <span class="meta">{row.category && <span class="cat" data-pigment={row.pigment}>{row.category}</span>}<span class="why fig">{row.note}</span></span>
     </li>)}
   </ul>
@@ -34,7 +34,7 @@ const s = copy.statement;
     // Jump to the raw state without transitions, then reserve that five-row height so
     // neither the reset nor the duplicate collapsing ever moves the page.
     card.classList.add('instant');
-    rows.forEach(row => { row.className = ''; });
+    rows.forEach(row => { row.className = ''; row.removeAttribute('aria-hidden'); });
     card.parentElement!.style.minHeight = `${card.offsetHeight}px`;
     void card.offsetHeight;
     card.classList.remove('instant');
@@ -43,7 +43,12 @@ const s = copy.statement;
   }
   function finish() {
     timers.forEach(clearTimeout); timers = [];
-    rows.forEach(row => { row.className = row.hasAttribute('data-dup') ? 'gone' : 'ok'; });
+    rows.forEach(row => {
+      const isDuplicate = row.hasAttribute('data-dup');
+      row.className = isDuplicate ? 'gone' : 'ok';
+      if (isDuplicate) row.setAttribute('aria-hidden', 'true');
+      else row.removeAttribute('aria-hidden');
+    });
     status.innerHTML = `<b>${s.doneLead}</b> · ${s.done}`;
     sum.textContent = s.summary;
   }
@@ -53,8 +58,8 @@ const s = copy.statement;
     let t = 900;
     rows.forEach(row => {
       if (row.hasAttribute('data-dup')) {
-        later(() => { row.className = 'dup'; }, t);
-        later(() => { row.className = 'gone'; }, t + 900);
+        later(() => { row.className = 'dup'; row.removeAttribute('aria-hidden'); }, t);
+        later(() => { row.className = 'gone'; row.setAttribute('aria-hidden', 'true'); }, t + 900);
         t += 900;
       } else later(() => { row.className = 'ok'; }, t);
       t += 650;
@@ -69,7 +74,7 @@ const s = copy.statement;
     reset();
     const notBefore = performance.now() + 1000;
     const observer = new IntersectionObserver(entries => {
-      if (!entries[0]!.isIntersecting) return;
+      if (entries[0]!.intersectionRatio < 0.5) return;
       observer.disconnect();
       window.setTimeout(play, Math.max(0, notBefore - performance.now()));
     }, { threshold: .5 });

@@ -1,6 +1,6 @@
 # Design review: the D5 rebuild (2026-10-21)
 
-Status: input for an owner decision; nothing here is decided.
+Status: decided by the owner 2026-10-21 and implemented (see "Owner decisions" at the end).
 
 Target: the landing page as rebuilt on D5 (commit `3bc579c`). Method: the `adversarial-design-review` skill. One evidence packet (screenshots at 390/768/1024/1440, intro frames, interaction states, reduced motion, measured targets and contrast), three independent Opus critics (message and comprehension; visual craft; interaction and motion), every geometric or behavioural claim re-measured in the browser before it was kept. No new Codex research run was needed; the skill's own research (`~/.agents/skills/adversarial-design-review/references/`) supplied the criteria.
 
@@ -45,3 +45,12 @@ Target: the landing page as rebuilt on D5 (commit `3bc579c`). Method: the `adver
 - **Message:** the page is clear in five seconds at both widths. The proof comes from the Swiss specifics (Migros, TWINT, `4'812`, the SUMIFS bar); without them the headline and the closing would fit any budgeting app. Nothing on the page overpromises. "Take everything with you" must be true at launch.
 - **Craft:** no P1 findings. The issues are edges and consistency. The memorable decision is already there: the strikethrough together with the tidying card.
 - **Interaction:** the intro holds nothing back (the form is usable at about 1.5s). The clutter is up for under 0.9s, so it may read as a flash rather than a mess (hypothesis; check with a frame-by-frame recording).
+
+## Owner decisions (2026-10-21, chosen from the options put to him)
+
+- **Measured defects D1–D6:** "Fix all six". Done. The intro no longer shifts the page: the hero card keeps its five-row height while it plays, and the section below stays put within a pixel (785 → 786). On phones the sequence waits until the card is half visible. The caret blinks three times. The demo pills, choices and Confirm have 44px hit areas. `--muted` is darkened to #63686e. Confirm reads "Confirm 3" ("3 confirmed · TWINT waits for you") until TWINT is picked, then "Confirm all 4".
+- **B, persistent duplicate:** "Collapse like D5". Not adopted; the row still collapses, and D1 is fixed by reserving the height.
+- **A, grid:** "Align to content". Done. Header, formula bar, hero copy (columns 1–7), card (columns 8–12) and the backdrop lines share one twelve-column grid of the content box (eight columns at ≤900px, four at ≤520px).
+- **C + D, demo data:** "Yes, unify". Done. October everywhere, `CHF` amounts without signs, an outlined Confirm. Each beat-3 choice now shows a result line. Its wording is drafted by Claude and awaits the owner's read: "Noted. Cerna won't flag this again." / "Cerna will mention it next month."
+- **Still open:** a bank-coverage line (needs the owner's words); the five-person tests above.
+- **Verification gap:** these fixes were checked in a real browser (scripts in the session scratchpad), but the repo has no browser test harness. A Playwright check for layout stability during the intro and for the mobile trigger would make D1 and D2 regressions visible. This is recorded as a follow-up, not built.

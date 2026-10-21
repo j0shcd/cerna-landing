@@ -58,10 +58,10 @@ export const copy = {
     uncertain: 'Restaurants?', categories: ['Restaurants', 'Groceries', 'Other'], menu: 'Category for TWINT', confirm: 'Confirm 3', confirmAll: 'Confirm all 4', confirmed: '3 confirmed · TWINT waits for you', confirmedAll: '4 confirmed', remember: 'Cerna will remember this.', unsure: '1 to check',
   },
   checkIn: {
-    heading: 'October', total: "CHF 4'812", status: 'Within your usual', range: "Usual range: CHF 4'400–5'200",
+    label: 'Example monthly check-in', heading: 'September spending', total: "CHF 4'812", status: 'Within your usual', range: "Usual range: CHF 4'400–5'200",
     first: 'Restaurants CHF 140 above usual.', detail: 'Three more visits, similar bills.',
-    choices: ['One-off', 'Keep an eye on it'],
-    outcomes: ['Noted. Cerna won’t flag this again.', 'Cerna will mention it next month.'],
+    second: 'Lisbon trip:', secondAmount: 'EUR 612.40', secondDetail: 'converted at each day’s rate.',
   },
+
   clutter: ['#REF!', 'dup? check UBS', '=SUMIF(C:C,…)', 'EUR 42.00', 'CHF 84.30', 'fix FX', '??', 'COOP-4521', 'Revolut', '=C41*0.937', '14.09.', 'TWINT *ANNA', '#VALUE!', 'copy from tab 2', 'CHF 249.00', 'SBB EASYRIDE'],
 } as const;

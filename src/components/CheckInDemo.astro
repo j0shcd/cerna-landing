@@ -2,40 +2,26 @@
 import { copy } from '../content/copy';
 const c = copy.checkIn;
 ---
-<div class="vis check-in" data-check-in>
-  <div class="top"><span class="month caption">{c.heading}</span><span class="usual">{c.status}</span></div>
+<div class="vis brief" role="img" aria-label={`${c.label}: ${c.heading} ${c.total}, ${c.status.toLowerCase()}. ${c.first} ${c.detail} ${c.second} ${c.secondAmount} ${c.secondDetail}`}>
+  <div class="month"><span class="caption">{c.heading}</span><span class="usual">{c.status}</span></div>
   <p class="total fig">{c.total}</p>
-  <div class="range" role="img" aria-label={c.range}><span class="band"></span><span class="dot"></span></div>
-  <p class="note"><strong>{c.first}</strong> {c.detail}</p>
-  <div class="choices">{c.choices.map(choice => <button type="button" aria-pressed="false">{choice}</button>)}</div>
-  <p class="outcome caption" aria-live="polite"></p>
+  <div class="range"><span class="band"></span><span class="dot"></span></div>
+  <ul>
+    <li><span class="k"></span><span><b>{c.first}</b> {c.detail}</span></li>
+    <li><span class="k fx"></span><span>{c.second} <span class="fig">{c.secondAmount}</span> {c.secondDetail}</span></li>
+  </ul>
 </div>
-<script>
-  import { copy } from '../content/copy';
-  const checkIn = document.querySelector<HTMLElement>('[data-check-in]')!;
-  checkIn.querySelectorAll<HTMLButtonElement>('.choices button').forEach((button, index) => {
-    button.addEventListener('click', () => {
-      const next = button.getAttribute('aria-pressed') !== 'true';
-      checkIn.querySelector('.outcome')!.textContent = next ? copy.checkIn.outcomes[index]! : '';
-      checkIn.querySelectorAll('.choices button').forEach(other => other.setAttribute('aria-pressed', String(other === button && next)));
-      checkIn.querySelector('.note')!.classList.toggle('noted', next);
-    });
-  });
-</script>
 <style>
-  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-  .usual { font-size: .8rem; color: var(--done); font-weight: 500; }
+  /* D3's monthly brief, set in D5's beat card. */
+  .month { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .usual { font-size: .85rem; font-weight: 500; color: var(--done); }
   .total { font-size: 1.9rem; line-height: 1.1; letter-spacing: -.03em; }
-  .range { position: relative; height: 6px; margin: 6px 0 10px; border-radius: 6px; background: var(--cell-head); }
-  .band { position: absolute; left: 30%; width: 38%; height: 100%; border-radius: 6px; background: var(--slate); }
-  .dot { position: absolute; left: 52%; top: -4px; width: 14px; height: 14px; border-radius: 50%; background: var(--cobalt); border: 3px solid var(--sheet); box-shadow: 0 0 0 1px var(--cell); }
-  .note { padding: 6px 0 6px 10px; border-left: 2px solid var(--rose-ink); font-size: .9rem; line-height: 1.35; color: var(--graphite); transition: background .2s; }
-  .note strong { font-weight: 500; color: var(--ink); }
-  .note.noted { background: var(--wash); }
-  .choices { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-  button::after { content: ''; position: absolute; inset: -6px 0; }
-  .outcome { min-height: 1.4em; }
-  button { position: relative; min-height: 32px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 500 .8rem var(--display); transition: background .15s, color .15s, border-color .15s; }
-  button:hover { border-color: var(--ink); }
-  [aria-pressed='true'] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .range { position: relative; height: 6px; margin: 8px 0 6px; border-radius: 99px; background: var(--cell-head); }
+  .band { position: absolute; inset: 0 32% 0 30%; border-radius: 99px; background: var(--sage); }
+  .dot { position: absolute; left: 52%; top: 50%; width: 12px; height: 12px; margin: -9px 0 0 -9px; border-radius: 50%; background: var(--done); border: 3px solid var(--sheet); box-sizing: content-box; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; gap: 10px; padding: 8px 0; border-top: 1px solid var(--cell); font-size: .85rem; line-height: 1.35; color: var(--graphite); }
+  li b { font-weight: 500; color: var(--ink); }
+  .k { flex: none; width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--rose-ink); }
+  .k.fx { background: var(--line); }
 </style>

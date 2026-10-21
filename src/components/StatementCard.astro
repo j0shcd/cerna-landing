@@ -1,70 +1,99 @@
 ---
 import { copy } from '../content/copy';
+const s = copy.statement;
 ---
-<figure class="statement" aria-label={copy.statement.label}>
-  <figcaption class="statement-head"><div class="files">{copy.statement.files.map(file => <span>{file}</span>)}</div><span class="caption">{copy.sample}</span></figcaption>
-  <div class="statement-status fig"><span data-statement-status>{copy.statement.done}</span><span class="status-dot" aria-hidden="true"></span></div>
-  <ul class="transactions">
-    {copy.statement.rows.map((row, index) => <li class:list={['transaction', { duplicate: 'duplicate' in row }]} style={`--step:${index * 230}ms`}>
-      <div class="merchant"><span class="raw" aria-hidden="true">{row.raw}</span><span class="clean">{row.clean}</span></div>
-      <div class="amount fig"><span class:list={['original', { converted: 'converted' in row }]} aria-hidden={'converted' in row ? 'true' : undefined}>{row.amount}</span>{'converted' in row && <span class="converted-amount">{row.converted}</span>}</div>
-      <div class="transaction-meta">{row.category && <span class="chip" data-pigment={row.pigment}>{row.category}</span>}<span class="caption">{row.note}</span></div>
+<figure class="statement" aria-label={s.label} data-statement>
+  <div class="st-head">
+    <div class="files">{s.files.map(file => <span class="file">{file}</span>)}</div>
+    <span class="st-status fig" data-status><b>{s.doneLead}</b> · {s.done}</span>
+  </div>
+  <ul class="tx">
+    {s.rows.map(row => <li class={'duplicate' in row ? 'gone' : 'ok'} data-dup={'duplicate' in row ? '' : undefined}>
+      <span class="name"><span class="raw" aria-hidden="true">{row.raw}</span><span class="clean">{row.clean}</span></span>
+      <span class:list={['amt fig', { fx: 'converted' in row }]}><span class="from">{row.amount}</span>{'converted' in row && <span class="to">{row.converted}</span>}</span>
+      <span class="meta">{row.category && <span class="cat" data-pigment={row.pigment}>{row.category}</span>}<span class="why fig">{row.note}</span></span>
     </li>)}
   </ul>
-  <div class="statement-foot"><span class="caption">{copy.statement.summary}</span><button class="quiet-button" type="button" data-replay>{copy.replay}</button></div>
+  <div class="st-foot">
+    <span class="sum fig" data-sum>{s.summary}</span>
+    <button class="link-button" type="button" data-replay>{copy.replay}</button>
+  </div>
 </figure>
 <script>
   import { copy } from '../content/copy';
-  const card = document.querySelector<HTMLElement>('.statement')!;
-  const status = card.querySelector<HTMLElement>('[data-statement-status]')!;
+  const s = copy.statement;
+  const card = document.querySelector<HTMLElement>('[data-statement]')!;
+  const rows = [...card.querySelectorAll<HTMLLIElement>('.tx li')];
+  const status = card.querySelector<HTMLElement>('[data-status]')!;
+  const sum = card.querySelector<HTMLElement>('[data-sum]')!;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
-  let timer: number | undefined;
-  function finish() { card.classList.remove('playing'); status.textContent = copy.statement.done; }
+  let timers: number[] = [];
+  const later = (fn: () => void, ms: number) => timers.push(window.setTimeout(fn, ms));
+  function reset() {
+    timers.forEach(clearTimeout); timers = [];
+    rows.forEach(row => { row.className = ''; });
+    status.textContent = s.reading;
+    sum.textContent = s.found;
+  }
+  function finish() {
+    timers.forEach(clearTimeout); timers = [];
+    rows.forEach(row => { row.className = row.hasAttribute('data-dup') ? 'gone' : 'ok'; });
+    status.innerHTML = `<b>${s.doneLead}</b> · ${s.done}`;
+    sum.textContent = s.summary;
+  }
   function play() {
-    clearTimeout(timer);
-    finish();
-    if (reduce.matches) return;
-    // Restart only after the previous animation state has been removed.
-    void card.offsetWidth;
-    card.classList.add('playing');
-    status.textContent = copy.statement.reading;
-    timer = window.setTimeout(finish, 2600);
+    if (reduce.matches) { finish(); return; }
+    reset();
+    let t = 900;
+    rows.forEach(row => {
+      if (row.hasAttribute('data-dup')) {
+        later(() => { row.className = 'dup'; }, t);
+        later(() => { row.className = 'gone'; }, t + 900);
+        t += 900;
+      } else later(() => { row.className = 'ok'; }, t);
+      t += 650;
+    });
+    later(finish, t + 200);
   }
   card.querySelector('[data-replay]')!.addEventListener('click', play);
-  reduce.addEventListener('change', () => { if (reduce.matches) { clearTimeout(timer); finish(); } });
-  if (document.documentElement.classList.contains('intro-play')) window.setTimeout(play, 1600);
+  reduce.addEventListener('change', () => { if (reduce.matches) finish(); });
+  // The finished state is server-rendered; the sequence plays once on a first visit, under the intro.
+  if (document.documentElement.classList.contains('intro-play')) { reset(); window.setTimeout(play, 1000); }
 </script>
 <style>
-  .statement { background: var(--sheet); border: 1px solid #d5d8d0; border-radius: 8px; box-shadow: 0 2px 0 #17191c03,0 30px 64px -45px #17191c77; overflow: hidden; transition: box-shadow 200ms; }
-  .statement:hover { box-shadow: 0 2px 0 #17191c03,0 32px 64px -40px #17191c77; }
-  .statement-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 16px 20px; background: var(--violet); border-bottom: 1px solid var(--cell); }
-  .files { display: flex; flex-wrap: wrap; gap: 6px; }
-  .files span { font: 400 .6875rem/1.4 var(--figure); border: 1px solid #bfbccb; background: #fff9; padding: 4px 7px; border-radius: 3px; }
-  .statement-status { display: flex; align-items: center; justify-content: space-between; padding: 13px 20px; color: var(--done); font-size: .75rem; border-bottom: 1px solid var(--cell); }
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--done); }
-  .transactions { list-style: none; margin: 0; padding: 0; }
-  .transaction { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 7px 12px; padding: 14px 20px; border-bottom: 1px solid var(--cell); transition: background 180ms; }
-  .transaction:hover { background: #f8f9fc; }
-  .merchant { display: grid; min-width: 0; align-items: center; }
-  .merchant > span { grid-area: 1/1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .raw { opacity: 0; font: 400 .75rem var(--figure); color: var(--graphite); }
-  .clean { font: 500 1.0625rem var(--display); }
-  .amount { display: grid; text-align: right; font-size: .875rem; align-content: center; }
-  .amount > span { grid-area: 1/1; }
-  .original.converted { opacity: 0; }
-  .transaction-meta { grid-column: 1/-1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 24px; }
-  .duplicate { background: var(--warm); padding-block: 9px; }
-  .duplicate .clean { text-decoration: line-through; color: var(--graphite); font-size: .875rem; }
-  .duplicate .amount { text-decoration: line-through; color: var(--graphite); }
-  .duplicate .transaction-meta { min-height: 0; }
-  .statement-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 3px 12px 3px 20px; background: var(--cell-head); }
-  .playing .raw { animation: raw-out 750ms var(--ease) calc(200ms + var(--step)) both; }
-  .playing .clean, .playing .transaction-meta { animation: clean-in 750ms var(--ease) calc(200ms + var(--step)) both; }
-  .playing .original.converted { animation: raw-out 750ms var(--ease) calc(200ms + var(--step)) both; }
-  .playing .converted-amount { animation: clean-in 750ms var(--ease) calc(200ms + var(--step)) both; }
-  .playing .duplicate .clean { animation: duplicate-in 1200ms var(--ease) both; }
-  @keyframes raw-out { 0%,35% { opacity: 1; } 100% { opacity: 0; } }
-  @keyframes clean-in { 0%,35% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: none; } }
-  @keyframes duplicate-in { from { opacity: 0; } to { opacity: 1; } }
-  @media (max-width: 400px) { .transaction { padding-inline: 14px; } .statement-head { padding-inline: 14px; } .amount { font-size: .8125rem; } }
+  .statement { background: var(--sheet); border: 1px solid var(--cell); border-radius: 10px; box-shadow: 0 1px 0 #17191c0a, 0 30px 60px -40px #17191c59; overflow: hidden; }
+  .st-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--cell); background: var(--cell-head); }
+  .files { display: flex; gap: 6px; flex-wrap: wrap; }
+  .file { font: 400 .75rem var(--figure); padding: 3px 8px; border-radius: 4px; background: var(--sheet); border: 1px solid var(--cell); color: var(--graphite); }
+  .st-status { font-size: .75rem; color: var(--muted); }
+  .st-status :global(b) { font-weight: 500; color: var(--done); }
+  .tx { list-style: none; margin: 0; padding: 0; }
+  li { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 16px; padding: 12px 18px; border-bottom: 1px solid var(--cell); max-height: 120px; overflow: hidden; transition: max-height .6s var(--ease), padding .6s var(--ease), opacity .5s, background .5s; }
+  li:last-child { border-bottom: 0; }
+  .name { position: relative; min-width: 0; }
+  .raw, .clean { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .45s var(--ease), transform .45s var(--ease); }
+  .raw { font: 400 .82rem var(--figure); letter-spacing: .01em; color: var(--graphite); }
+  .clean { position: absolute; inset: 0; font: 500 1.02rem var(--display); color: var(--ink); opacity: 0; transform: translateY(6px); }
+  .amt { position: relative; min-width: 7.2em; text-align: right; font-size: .95rem; }
+  .from, .to { display: block; transition: opacity .45s, transform .45s var(--ease); }
+  .to { position: absolute; right: 0; top: 0; opacity: 0; transform: translateY(6px); }
+  .meta { grid-column: 1/-1; display: flex; gap: 8px; align-items: center; min-height: 22px; }
+  .cat { opacity: 0; transform: scale(.92); transition: opacity .4s, transform .4s var(--ease); }
+  .why { font-size: .72rem; color: var(--muted); opacity: 0; transition: opacity .4s .15s; }
+  [data-dup] .why { opacity: 1; }
+  li.ok .raw { opacity: 0; transform: translateY(-6px); }
+  li.ok .clean { opacity: 1; transform: none; }
+  li.ok .amt.fx .from { opacity: 0; transform: translateY(-6px); }
+  li.ok .amt.fx .to { opacity: 1; transform: none; }
+  li.ok .cat, li.ok .why { opacity: 1; transform: none; }
+  li.dup { background: var(--dup); }
+  li.dup .raw { text-decoration: line-through; text-decoration-color: var(--ink); }
+  li.gone { max-height: 0; padding-block: 0; opacity: 0; border-bottom-color: transparent; }
+  .st-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 18px; border-top: 1px solid var(--cell); background: var(--cell-head); }
+  .sum { font-size: .8rem; color: var(--graphite); }
+  @media (max-width: 520px) {
+    li { padding: 11px 14px; }
+    .st-head, .st-foot { padding-inline: 14px; }
+    .st-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+  }
 </style>

@@ -2,12 +2,13 @@
 import { copy } from '../content/copy';
 import WaitlistForm from './WaitlistForm.astro';
 ---
-<section class="wrap closing" aria-labelledby="closing-heading" data-reveal>
-  <h2 id="closing-heading">{copy.closing}</h2>
-  <WaitlistForm id="join-closing" />
+<section class="close" aria-labelledby="closing-heading" data-reveal>
+  <div class="wrap">
+    <h2 id="closing-heading">{copy.closing}</h2>
+    <WaitlistForm id="join-closing" />
+  </div>
 </section>
 <style>
-  .closing { padding-block: clamp(72px,9vw,140px) clamp(80px,10vw,150px); }
-  h2 { font-size: clamp(3.5rem,8.8vw,8rem); line-height: .94; max-width: 12ch; margin-bottom: 42px; letter-spacing: -.045em; }
-  @media (max-width: 560px) { h2 { font-size: clamp(3rem,13vw,4.5rem); margin-bottom: 32px; } }
+  .close { padding: clamp(48px,9vh,112px) 0 clamp(72px,12vh,140px); }
+  h2 { font-size: var(--step-4); line-height: .98; letter-spacing: -.035em; max-width: 12ch; margin-bottom: .5em; }
 </style>

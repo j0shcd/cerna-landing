@@ -1,28 +1,32 @@
 ---
 import { copy } from '../content/copy';
-const letters = 'ABCDEFGHIJKL'.split('');
+// Twelve columns by ten rows of first-visit clutter, aligned to the grid cells.
 const cells = Array.from({ length: 120 }, (_, i) => ({ text: copy.clutter[(i * 7 + Math.floor(i / 12)) % copy.clutter.length], c: i % 12, r: Math.floor(i / 12) }));
 ---
-<div class="spreadsheet" aria-hidden="true">
-  <div class="gridlines"></div>
-  <div class="columns">{letters.map(letter => <span>{letter}</span>)}</div>
-  <div class="numbers">{Array.from({ length: 26 }, (_, i) => <span>{i + 1}</span>)}</div>
-  <div class="clutter">{cells.map(({ text, c, r }) => <span class:list={['cell', { highlight: (c + r) % 7 === 0 }]} style={`--c:${c};--r:${r};--delay:${150 + Math.hypot(c - 3, r - 3) * 45}ms`}>{text}</span>)}</div>
+<div class="grid" aria-hidden="true" data-grid>
+  <div class="clutter">{cells.map(({ text, c, r }) => <span class:list={['cell', { warn: (c + r) % 7 === 0, err: text.startsWith('#') }]} style={`--c:${c};--r:${r};--delay:${150 + Math.hypot(c - 3, r - 3) * 45}ms`}>{text}</span>)}</div>
 </div>
+<script>
+  // The sheet fades as the visitor scrolls away from it.
+  const grid = document.querySelector<HTMLElement>('[data-grid]')!;
+  const hero = grid.parentElement!;
+  const onScroll = () => grid.style.setProperty('--grid-o', (1 - Math.min(1, Math.max(0, scrollY / (hero.offsetHeight * .8)))).toFixed(3));
+  addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
 <style>
-  .spreadsheet { --cw: calc((100vw - 32px) / 12); --rh: 36px; position: absolute; inset: 0 0 -80px; z-index: -1; pointer-events: none; overflow: hidden; font: 400 .6875rem var(--figure); color: var(--muted); }
-  .gridlines { position: absolute; inset: 0; background: linear-gradient(90deg,var(--cell) 1px,transparent 1px) 32px 28px / var(--cw) var(--rh), linear-gradient(var(--cell) 1px,transparent 1px) 32px 28px / var(--cw) var(--rh); opacity: .6; mask-image: linear-gradient(#000,transparent 95%), radial-gradient(ellipse at 35% 50%, transparent 20%, #000 90%); mask-composite: intersect; }
-  .columns { display: grid; grid-template-columns: repeat(12,1fr); margin-left: 32px; height: 28px; border-block: 1px solid var(--cell); background: var(--cell-head); opacity: .8; }
-  .columns span { text-align: center; border-right: 1px solid var(--cell); line-height: 27px; }
-  .numbers { position: absolute; left: 0; top: 28px; width: 32px; border-right: 1px solid var(--cell); opacity: .65; mask-image: linear-gradient(#000,transparent); }
-  .numbers span { display: block; text-align: center; height: var(--rh); line-height: var(--rh); border-bottom: 1px solid var(--cell); }
-  .clutter { position: absolute; inset: 28px 0 0 32px; opacity: 0; }
-  .cell { position: absolute; left: calc(var(--c) * var(--cw)); top: calc(var(--r) * var(--rh)); width: var(--cw); height: var(--rh); line-height: var(--rh); padding: 0 7px; overflow: hidden; white-space: nowrap; }
-  .highlight { background: var(--ochre); color: #654900; }
-  :global(.intro-play) .clutter { opacity: 1; }
-  :global(.intro-play) .cell { animation: clear-cell 350ms var(--ease) var(--delay) both; }
-  :global(.intro-play) .gridlines { animation: quiet-grid 900ms var(--ease) both; }
-  @keyframes clear-cell { from { opacity: 1; } to { opacity: 0; transform: translateY(-4px); } }
-  @keyframes quiet-grid { from { opacity: 1; mask-image: none; } }
-  @media (prefers-reduced-motion: reduce) { .clutter { display: none; } }
+  .grid { position: absolute; inset: -88px 0 0; z-index: -1; pointer-events: none; overflow: hidden; opacity: var(--grid-o, 1);
+    background-image: linear-gradient(to right, var(--cell) 1px, transparent 1px), linear-gradient(to bottom, var(--cell) 1px, transparent 1px);
+    background-size: var(--cell-w) var(--cell-h);
+    background-position: calc(var(--gutter) - 1px) 0;
+    mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+    transition: opacity .2s linear; }
+  .clutter { position: absolute; inset: 0 0 0 var(--gutter); display: none; font: 400 .6875rem var(--figure); color: var(--muted); }
+  .cell { position: absolute; left: calc(var(--c) * var(--cell-w)); top: calc(var(--r) * var(--cell-h)); width: var(--cell-w); height: var(--cell-h); line-height: var(--cell-h); padding: 0 7px; overflow: hidden; white-space: nowrap; text-overflow: clip; }
+  .warn { background: var(--ochre); color: var(--ochre-ink); }
+  .err { color: #a23f4c; }
+  :global(.intro-play) .clutter { display: block; }
+  :global(.intro-play) .cell { animation: clear-cell 380ms var(--ease) var(--delay) both; }
+  @keyframes clear-cell { from { opacity: 1; } to { opacity: 0; transform: translateY(-6px); filter: blur(2px); } }
+  @media (max-width: 520px) { .grid { --cell-h: 30px; mask-image: linear-gradient(to bottom, #000 0, #000 280px, transparent 520px); } }
 </style>

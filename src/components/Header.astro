@@ -1,15 +1,13 @@
 ---
 import { copy } from '../content/copy';
 ---
-<header class="wrap site-header">
-  <a class="wordmark" href="/" aria-label={copy.brand}><span class="mark" aria-hidden="true"></span>{copy.brand}</a>
-  <a class="join-link" href="/#join">{copy.form.button}</a>
+<header class="site-header">
+  <a class="wordmark" href="/">{copy.brand}</a>
+  <a class="join" href="/#join">{copy.form.button}</a>
 </header>
 <style>
-  .site-header { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; min-height: 88px; gap: 16px; }
-  .wordmark { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; text-decoration: none; font: 600 1.6rem var(--display); letter-spacing: -.04em; }
-  .mark { position: relative; width: 17px; height: 17px; border: 2px solid var(--ink); }
-  .mark::after { content: ''; position: absolute; width: 7px; height: 7px; bottom: -2px; right: -2px; background: var(--ink); }
-  .join-link { display: inline-flex; align-items: center; min-height: 44px; font: 500 .9375rem var(--display); text-underline-offset: 5px; text-decoration-thickness: 1px; }
-  .join-link:hover { color: var(--cobalt); }
+  .site-header { position: relative; z-index: 3; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 22px max(var(--gutter), env(safe-area-inset-left)); }
+  .wordmark { display: inline-flex; align-items: center; min-height: 44px; }
+  .join { display: inline-flex; align-items: center; min-height: 44px; font: 500 .95rem var(--display); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+  .join:hover { color: var(--cobalt); }
 </style>

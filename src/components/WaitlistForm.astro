@@ -5,38 +5,40 @@ const { id } = Astro.props;
 ---
 <div class="waitlist" id={id} data-waitlist>
   <form method="post" action="/api/waitlist" id={`${id}-form`}>
-    <label for={`${id}-email`}>{copy.form.label}</label>
-    <div class="formula-input">
+    <label class="sr-only" for={`${id}-email`}>{copy.form.label}</label>
+    <div class="row">
       <span class="fx fig" aria-hidden="true">{copy.fx}</span>
       <input id={`${id}-email`} name="email" type="email" autocomplete="email" placeholder={copy.form.placeholder} aria-describedby={`${id}-note ${id}-status`} required />
-      <button class="primary" type="submit">{copy.form.button}</button>
+      <button class="btn" type="submit">{copy.form.button}</button>
     </div>
     <div class="honeypot" aria-hidden="true">
       <label for={`${id}-company`}>{copy.form.company}</label>
       <input id={`${id}-company`} name="company" type="text" tabindex="-1" aria-hidden="true" autocomplete="off" />
     </div>
   </form>
-  <p class="form-note" id={`${id}-note`}>{copy.form.note}</p>
+  <p class="note" id={`${id}-note`}>{copy.form.note}</p>
   <p class="form-status" id={`${id}-status`} aria-live="polite" aria-atomic="true" tabindex="-1"></p>
 </div>
 <script>
   import '../scripts/waitlist';
 </script>
 <style>
-  .waitlist { max-width: 540px; scroll-margin-top: 30px; }
-  label { display: block; font: 500 .8125rem var(--display); margin-bottom: 7px; color: var(--graphite); }
-  .formula-input { display: flex; align-items: stretch; min-width: 0; border: 1px solid #b9bdb5; border-radius: 4px; background: var(--sheet); box-shadow: 0 8px 20px -18px #17191c80; transition: border-color 180ms, box-shadow 180ms; }
-  .formula-input:focus-within { border-color: var(--cobalt); box-shadow: 0 0 0 1px var(--cobalt); }
-  .fx { display: flex; align-items: center; padding-inline: 12px; border-right: 1px solid var(--cell); color: var(--muted); font-size: .8125rem; font-style: italic; }
-  input { min-width: 0; width: 100%; flex: 1; border: 0; background: transparent; padding: 13px 12px; color: var(--ink); font: 400 1rem var(--display); border-radius: 2px; }
-  input:focus-visible { outline-offset: -3px; }
+  .waitlist { max-width: 30rem; scroll-margin-top: 30px; }
+  .row { display: flex; align-items: stretch; gap: 8px; background: var(--sheet); border: 1px solid var(--line); border-radius: calc(var(--radius) + 4px); padding: 6px; box-shadow: 0 1px 0 #17191c08, 0 8px 24px -16px #17191c40; transition: border-color .15s; }
+  .row:focus-within { border-color: var(--cobalt); }
+  .fx { display: flex; align-items: center; padding: 0 4px 0 10px; color: var(--muted); font-size: .85rem; font-style: italic; }
+  input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 10px 8px; color: var(--ink); font: 500 1rem var(--display); outline: none; }
   input::placeholder { color: var(--muted); }
-  .primary { flex: none; margin: 5px; }
-  .form-note { margin-top: 12px; font: 400 .8125rem/1.5 var(--figure); color: var(--graphite); max-width: 49ch; }
-  .form-status { overflow-wrap: anywhere; font: 400 1rem/1.5 var(--display); color: var(--error); }
-  .form-status:not(:empty) { margin-top: 12px; }
-  .is-done form, .is-done .form-note { display: none; }
-  .is-done .form-status { margin: 0; color: var(--done); border: 1px solid var(--done); padding: 18px; border-radius: 4px; background: var(--sheet); }
+  .note { margin-top: .7rem; font: 400 var(--step--1)/1.5 var(--figure); color: var(--muted); }
+  .form-status { overflow-wrap: anywhere; font: 400 .95rem/1.5 var(--display); color: var(--error); }
+  .form-status:not(:empty) { margin-top: .6rem; }
+  .is-done form, .is-done .note { display: none; }
+  .is-done .form-status { margin: 0; color: var(--ink); background: var(--sheet); border: 1px solid var(--cell); border-left: 3px solid var(--done); border-radius: calc(var(--radius) + 4px); padding: 16px 18px; animation: rise .5s var(--ease); }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
   .honeypot { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  @media (max-width: 560px) { .formula-input { flex-wrap: wrap; } .fx { width: 42px; justify-content: center; padding: 0; } input { width: calc(100% - 42px); flex-basis: calc(100% - 42px); min-height: 54px; } .primary { width: calc(100% - 10px); } }
+  @media (max-width: 520px) {
+    .row { flex-wrap: wrap; padding: 8px; }
+    input { width: calc(100% - 40px); }
+    .btn { width: 100%; padding: 14px; }
+  }
 </style>

@@ -2,16 +2,23 @@
 import { copy } from '../content/copy';
 ---
 <footer>
-  <div class="wrap footer-content"><span class="wordmark">{copy.brand}</span><div><p><strong>{copy.privacyTitle}</strong>{copy.privacy}</p><nav class="legal-links" aria-label="Legal"><a href="/privacy">Privacy notice</a><a href="/impressum">Impressum</a></nav></div><span class="copyright fig">{copy.copyright} {new Date().getFullYear()} {copy.brand}</span></div>
+  <div class="wrap foot">
+    <span class="wordmark">{copy.brand}</span>
+    <p class="privacy"><strong>{copy.privacyTitle}</strong>{copy.privacy}</p>
+    <div class="meta fig">
+      <nav aria-label="Legal"><a href="/privacy">Privacy notice</a><a href="/impressum">Impressum</a></nav>
+      <span>{copy.copyright} {new Date().getFullYear()} {copy.brand}</span>
+    </div>
+  </div>
 </footer>
 <style>
-  footer { border-top: 1px solid var(--cell); padding-block: 32px max(40px,env(safe-area-inset-bottom)); }
-  .footer-content { display: grid; grid-template-columns: 1fr 3fr 1fr; gap: 24px 40px; align-items: start; }
-  .wordmark { font: 600 1.25rem var(--display); letter-spacing: -.03em; }
-  p { font-size: 1.0625rem; color: var(--graphite); max-width: 38rem; }
-  .legal-links { display: flex; gap: 20px; margin-top: 16px; font: 500 .9375rem var(--display); }
-  .legal-links a { display: inline-flex; align-items: center; min-height: 44px; text-underline-offset: 4px; text-decoration-thickness: 1px; }
-  strong { display: block; margin-bottom: 6px; font: 600 1rem var(--display); color: var(--ink); }
-  .copyright { font-size: .75rem; color: var(--muted); text-align: right; white-space: nowrap; }
-  @media (max-width: 768px) { .footer-content { grid-template-columns: 1fr; } .copyright { text-align: left; } }
+  footer { border-top: 1px solid var(--cell); padding: 32px 0 max(40px, env(safe-area-inset-bottom)); }
+  .foot { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 24px 48px; align-items: start; }
+  .wordmark { font-size: 1.2rem; }
+  .privacy { max-width: 38rem; font-size: 1rem; color: var(--graphite); }
+  .privacy strong { display: block; margin-bottom: 4px; font: 600 1rem var(--display); color: var(--ink); }
+  .meta { display: grid; justify-items: end; gap: 2px; font-size: var(--step--1); color: var(--muted); line-height: 1.7; }
+  nav { display: flex; gap: 16px; }
+  nav a { display: inline-flex; align-items: center; min-height: 44px; color: var(--graphite); text-underline-offset: 3px; }
+  @media (max-width: 900px) { .foot { grid-template-columns: 1fr; } .meta { justify-items: start; } }
 </style>

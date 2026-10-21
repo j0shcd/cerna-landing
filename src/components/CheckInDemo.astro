@@ -1,17 +1,13 @@
 ---
 import { copy } from '../content/copy';
+const c = copy.checkIn;
 ---
-<div class="demo check-in" data-check-in>
-  <span class="caption">{copy.sample}</span>
-  <p class="month">{copy.checkIn.heading}</p>
-  <p class="total fig">{copy.checkIn.total}</p>
-  <p class="usual">{copy.checkIn.status}</p>
-  <div class="range-wrap" tabindex="0" aria-label={copy.checkIn.range} aria-describedby="usual-range">
-    <div class="range" aria-hidden="true"><span class="band"></span><span class="dot"></span></div>
-    <span id="usual-range" class="range-tooltip caption" role="tooltip">{copy.checkIn.range}</span>
-  </div>
-  <ul class="notes"><li><strong>{copy.checkIn.first}</strong><span>{copy.checkIn.detail}</span></li><li>{copy.checkIn.second}</li></ul>
-  <div class="choices">{copy.checkIn.choices.map(choice => <button type="button" aria-pressed="false">{choice}</button>)}</div>
+<div class="vis check-in" data-check-in>
+  <div class="top"><span class="month caption">{c.heading}</span><span class="usual">{c.status}</span></div>
+  <p class="total fig">{c.total}</p>
+  <div class="range" role="img" aria-label={c.range}><span class="band"></span><span class="dot"></span></div>
+  <p class="note"><strong>{c.first}</strong> {c.detail}</p>
+  <div class="choices">{c.choices.map(choice => <button type="button" aria-pressed="false">{choice}</button>)}</div>
 </div>
 <script>
   const checkIn = document.querySelector<HTMLElement>('[data-check-in]')!;
@@ -19,28 +15,22 @@ import { copy } from '../content/copy';
     button.addEventListener('click', () => {
       const next = button.getAttribute('aria-pressed') !== 'true';
       checkIn.querySelectorAll('.choices button').forEach(other => other.setAttribute('aria-pressed', String(other === button && next)));
-      checkIn.querySelector('.notes li')!.classList.toggle('noted', next);
+      checkIn.querySelector('.note')!.classList.toggle('noted', next);
     });
   });
 </script>
 <style>
-  .month { font-size: .875rem; color: var(--graphite); }
-  .total { font-size: clamp(1.8rem,2.8vw,2.5rem); line-height: 1.2; letter-spacing: -.04em; margin-top: 7px; }
-  .usual { font-size: .8125rem; color: var(--graphite); margin-top: 3px; }
-  .range-wrap { position: relative; padding-block: 21px; cursor: help; }
-  .range { height: 8px; background: var(--warm); border-radius: 6px; position: relative; }
-  .band { position: absolute; left: 30%; width: 38%; height: 8px; background: var(--pigment-slate); border-radius: 6px; }
-  .dot { position: absolute; left: 52%; top: -4px; width: 16px; height: 16px; border-radius: 50%; background: var(--cobalt); border: 3px solid var(--sheet); }
-  .range-tooltip { position: absolute; inset: auto -8px 40px; background: var(--ink); color: #fff; border-radius: 3px; padding: 9px; font-size: .6875rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity 180ms; }
-  .range-wrap:hover .range-tooltip, .range-wrap:focus .range-tooltip { opacity: 1; }
-  .notes { margin: 0; padding: 0; list-style: none; color: var(--graphite); font-size: .8125rem; }
-  .notes li { border-top: 1px solid var(--cell); padding: 12px 0 12px 11px; border-left: 2px solid var(--pigment-rose); transition: background 180ms; }
-  .notes li:last-child { border-left-color: var(--pigment-violet); }
-  .notes strong { display: block; color: var(--ink); font-weight: 500; }
-  .notes span { display: block; margin-top: 4px; }
-  .notes .noted { background: var(--wash); }
-  .choices { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
-  .choices button { min-height: 44px; background: transparent; border: 1px solid #b5bac5; border-radius: 4px; padding: 7px 9px; font: 500 .8125rem/1.2 var(--display); transition: background 180ms,border-color 180ms; }
-  .choices button:hover { border-color: var(--cobalt); }
-  .choices [aria-pressed='true'] { background: var(--wash); border-color: var(--cobalt); color: var(--cobalt); box-shadow: inset 0 0 0 1px var(--cobalt); }
+  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .usual { font-size: .8rem; color: var(--done); font-weight: 500; }
+  .total { font-size: 1.9rem; line-height: 1.1; letter-spacing: -.03em; }
+  .range { position: relative; height: 6px; margin: 6px 0 10px; border-radius: 6px; background: var(--cell-head); }
+  .band { position: absolute; left: 30%; width: 38%; height: 100%; border-radius: 6px; background: var(--slate); }
+  .dot { position: absolute; left: 52%; top: -4px; width: 14px; height: 14px; border-radius: 50%; background: var(--cobalt); border: 3px solid var(--sheet); box-shadow: 0 0 0 1px var(--cell); }
+  .note { padding: 6px 0 6px 10px; border-left: 2px solid var(--rose-ink); font-size: .9rem; line-height: 1.35; color: var(--graphite); transition: background .2s; }
+  .note strong { font-weight: 500; color: var(--ink); }
+  .note.noted { background: var(--wash); }
+  .choices { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  button { min-height: 32px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 500 .8rem var(--display); transition: background .15s, color .15s, border-color .15s; }
+  button:hover { border-color: var(--ink); }
+  [aria-pressed='true'] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 </style>

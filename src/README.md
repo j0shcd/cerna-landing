@@ -7,8 +7,14 @@ names live in `content/copy.ts`. Components own their styles and interactions;
 shared form behavior lives in `scripts/waitlist.ts`.
 
 The marketing direction remains in [the owner's brief](../design/marketing.md).
-D5 supplies the layout; D3 supplies the clearing sequence and product examples,
-D4 the formula-bar form, D1 the import notes, and D2 the category pigments.
+The page is a near one-to-one rebuild of `design/reference/d5-design-led`
+(tokens, grid, formula bar, statement card and its sequence, the three ruled
+beats, closing, footer). On that base sit the owner's choices: the copy in
+`copy.ts`, D3's first-visit clutter clearing off the grid, D4's `fx` nod in the
+form, D1's import files with a Revolut EUR line, D3's categorise and check-in
+examples compressed into D5's beat cards, and pastel category pigments as the
+pop of colour. The "Sample data" labels were dropped to match D5; the hero card
+keeps an "Example:" accessible name.
 The financial examples are sample data. In particular, the monthly summary is
 an intended product experience, not proof of implemented finance-app behavior.
 
@@ -25,7 +31,7 @@ Server-rendered HTML contains the final visual state. The early head script
 opts into the intro only on the first session visit, when motion is allowed
 and session storage is available. A blocked storage API leaves the final state.
 The statement demo plays once after that intro or on Replay. Scroll reveals
-hide only sections below the viewport. There are no animation loops.
+hide only sections below the viewport. There are no animation loops (the formula caret blinks six times and stops).
 
 Fonts use only the three installed Latin variable WOFF2 files, preloaded from
 this origin with optional display to avoid a late font swap. No external

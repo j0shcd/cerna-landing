@@ -22,7 +22,6 @@
     "SITE_ORIGIN": "https://cerna.example",
     "MAIL_FROM": "waitlist@cerna.example",
     "MAIL_FROM_NAME": "Cerna",
-    "ADMIN_NOTIFY_TO": "owner@cerna.example",
     "CONSENT_VERSION": "2026-10-20",
     "EMAIL_ENABLED": "false"
   }

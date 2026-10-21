@@ -47,11 +47,12 @@ Put the returned database ID into the existing `WAITLIST_DB` binding in
 `wrangler.jsonc`. Keep `migrations_dir` set to `migrations`; Wrangler applies
 numbered migrations in order. Configure a Brevo sender on an owned domain with
 verified DKIM/DMARC. `MAIL_FROM` must be an address on that domain, never Gmail.
-Set `MAIL_FROM_NAME` and `ADMIN_NOTIFY_TO` to the intended sender name and owner
-recipient. Signup addresses are never used as sender or Reply-To.
+Set `MAIL_FROM_NAME` to the intended sender name. `ADMIN_NOTIFY_TO` (the owner
+recipient) is a secret, not a `wrangler.jsonc` var: `.dev.vars` locally, `wrangler secret put` in production. Signup addresses are never used as sender or Reply-To.
 
 ```sh
 npx wrangler secret put BREVO_API_KEY
+npx wrangler secret put ADMIN_NOTIFY_TO
 npx wrangler secret put RATE_LIMIT_HMAC_KEY
 ```
 

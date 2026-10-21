@@ -49,13 +49,17 @@ export const copy = {
     conversion: 'EUR 42.80 → CHF 40.11', rate: 'at the rate of 14 October',
   },
   categorize: {
+    title: 'Review', label: 'Example: the review queue in Cerna',
     rows: [
-      { merchant: 'Migros', amount: 'CHF 84.30', category: 'Groceries', pigment: 'sage' },
-      { merchant: 'SBB', amount: 'CHF 42.00', category: 'Transport', pigment: 'slate' },
-      { merchant: 'TWINT', amount: 'CHF 36.50', category: 'Restaurants', pigment: 'ochre', uncertain: true },
-      { merchant: 'Coop', amount: 'CHF 12.95', category: 'Groceries', pigment: 'sage' },
+      { merchant: 'Migros', meta: '12 Oct · UBS', amount: 'CHF 84.30', category: 'Groceries', dot: 'groceries' },
+      { merchant: 'TWINT · Anna M.', meta: '14 Oct · UBS', amount: 'CHF 36.50', category: 'Restaurants', dot: 'restaurants', uncertain: true },
+      { merchant: 'SBB', meta: '15 Oct · Revolut', amount: 'CHF 42.00', category: 'Transport', dot: 'transport' },
     ],
-    uncertain: 'Restaurants?', categories: ['Restaurants', 'Groceries', 'Other'], menu: 'Category for TWINT', confirm: 'Confirm 3', confirmAll: 'Confirm all 4', confirmed: '3 confirmed · TWINT waits for you', confirmedAll: '4 confirmed', remember: 'Cerna will remember this.', unsure: '1 to check',
+    worth: 'Worth checking', categories: [
+      { name: 'Restaurants', dot: 'restaurants' }, { name: 'Groceries', dot: 'groceries' }, { name: 'Other', dot: 'other' },
+    ],
+    menu: 'Category for TWINT · Anna M.', needs: '1 needs your eye', clear: 'All clear',
+    approve: (n: number) => `Approve ${n}`, approved: (n: number) => `${n} approved`, waits: 'TWINT waits for you', remember: 'Cerna will remember this.',
   },
   checkIn: {
     label: 'Example monthly check-in', heading: 'September spending', total: "CHF 4'812", status: 'Within your usual', range: "Usual range: CHF 4'400–5'200",

@@ -16,9 +16,10 @@ const demos = [ImportDemo, CategorizeDemo, CheckInDemo];
 <style>
   .beats { padding: clamp(56px,10vh,120px) 0; border-top: 1px solid var(--cell); }
   h2 { font-size: var(--step-2); line-height: 1.1; letter-spacing: -.025em; max-width: 20ch; margin-bottom: clamp(40px,7vh,80px); }
-  .beat-list { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: clamp(24px,3vw,48px); list-style: none; margin: 0; padding: 0; }
-  .beat { min-width: 0; border-top: 1.5px solid var(--ink); padding-top: 20px; }
+  .beat-list { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); grid-template-rows: auto auto 1fr; column-gap: clamp(24px,3vw,48px); list-style: none; margin: 0; padding: 0; }
+  /* Subgrid rows keep the three visuals one height, so the headings below line up. */
+  .beat { display: grid; grid-template-rows: subgrid; grid-row: span 3; align-content: start; min-width: 0; border-top: 1.5px solid var(--ink); padding-top: 20px; }
   h3 { font-size: var(--step-1); font-weight: 600; letter-spacing: -.015em; line-height: 1.15; margin-bottom: .5rem; }
   p { color: var(--graphite); max-width: 26rem; text-wrap: pretty; }
-  @media (max-width: 900px) { .beat-list { grid-template-columns: 1fr; gap: 48px; } }
+  @media (max-width: 900px) { .beat-list { grid-template-columns: 1fr; grid-template-rows: none; row-gap: 48px; } .beat { display: block; } }
 </style>

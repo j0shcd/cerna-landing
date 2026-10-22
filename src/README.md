@@ -4,7 +4,7 @@
 font preloads, the skip link and the guarded intro flag. `styles/global.css`
 owns Tailwind and shared tokens. All visible copy, demo data and accessible
 names live in `content/copy.ts`. Components own their styles and interactions;
-shared form behavior lives in `scripts/waitlist.ts`.
+shared form behavior, including the header waitlist call, lives in `scripts/waitlist.ts`.
 
 The marketing direction remains in [the owner's brief](../design/marketing.md).
 The page is a near one-to-one rebuild of `design/reference/d5-design-led`
@@ -23,8 +23,9 @@ an intended product experience, not proof of implemented finance-app behavior.
 Light is the default. Dark follows the system setting (`prefers-color-scheme`),
 and `<html data-theme="light|dark">` can force either; there is no toggle. The
 dark palette is the app's warm ink (`cerna-app/DESIGN.md` §2), and every
-colour, shadow and category dot is a token in `styles/global.css`, so nothing
-outside it hard-codes a colour.
+colour, shadow and category dot is a token in `styles/global.css`.
+The `<meta name="theme-color">` values in `Base.astro` are the only colours outside
+`global.css` because meta tags cannot read CSS variables; keep them equal to `--paper`.
 
 The "It sorts. You nod." visual is a small copy of the app's Review queue
 (`cerna-app` `ReviewCard.svelte`): merchant and amount, date and account, the
@@ -51,7 +52,7 @@ hidden field, and modified clicks (Cmd/Ctrl/Shift/Alt) keep native link behaviou
 Server-rendered HTML contains the final visual state. The early head script
 opts into the intro only on the first session visit, when motion is allowed
 and session storage is available. A blocked storage API leaves the final state.
-The statement demo plays once on that first visit, when the card is half in view (so phones see it), or on Replay; its wrapper keeps the five-row height so the collapsing duplicate never moves the page. Header, hero and backdrop share one twelve-column grid of the content box (`--cols`, `--cw`, `--x0` on `.hero`). Scroll reveals
+The statement demo plays once on that first visit, when the card is half in view (so phones see it), or on Replay; its wrapper reserves the five-row height on every visit so Replay and the collapsing duplicate never move the page. Header, hero and backdrop share one twelve-column grid of the content box (`--cols`, `--cw`, `--x0` on `.hero`). Scroll reveals
 hide only sections below the viewport. There are no animation loops (the formula caret blinks six times and stops).
 
 Fonts use only the three installed Latin variable WOFF2 files, preloaded from
@@ -64,14 +65,17 @@ browser service is used.
 npx astro build
 npx vitest run
 node --test src/scripts/waitlist.test.mjs
-npx tsc --noEmit --types @cloudflare/workers-types
+npx tsc --noEmit -p worker/tsconfig.json
 npm run test:e2e   # Playwright 1.60: builds, serves dist via e2e/serve.mjs on :4329, headless
 ```
 
 The browser checks in `e2e/` cover what only a real layout engine shows: the
 intro never moves the section below the hero, and on a phone the statement
-sequence waits until half the card is visible. Each was confirmed to fail with
-its bug reintroduced.
+sequence waits until half the card is visible. Those existing regressions were
+confirmed to fail with their bugs reintroduced. The return-visit phone Replay
+check keeps `.beats` within 1px (it fails with a 73px shift when the startup
+reservation is removed). Positions are measured with `offsetTop`, so the
+scroll-reveal transform does not count as movement.
 
 `e2e/landing.spec.ts` adds header focus, call timing, hash navigation, closing-form
 scroll preservation, reduced motion, legal-page arrival, pointer and keyboard
@@ -81,9 +85,10 @@ responses are intercepted; these checks do not submit real signups.
 
 The Node tests exercise the built form module with a small DOM adapter. They
 cover the JSON contract, shared pending/success states, error retention, failed
-responses and redirect parameters. They do not verify browser DOM behavior.
-Root `npx tsc --noEmit` requires the backend Cloudflare globals; supplying the
-installed types explicitly avoids changing the shared tsconfig.
+responses, redirect parameters and cancellation of both scroll completion callbacks.
+The cancellation checks were confirmed to fail with cleanup removed. These tests
+do not verify browser layout. `worker/tsconfig.json` supplies the backend Cloudflare
+globals for the Worker type check.
 
 Next: the orchestrator should check 1440, 1024, 768 and 390px in a real browser,
 keyboard and reduced-motion behavior, storage denial, both form locations,

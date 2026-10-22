@@ -10,7 +10,7 @@ export const copy = {
   formulaRef: 'B2', fx: 'fx',
   form: {
     label: 'Email address', placeholder: 'you@example.com', button: 'Join the waitlist', busy: 'Joining…', company: 'Company',
-    note: 'The last cell you fill in. One email when Cerna opens, nothing else.',
+    note: 'The last cell you fill in. Get notified when we launch.',
     success: (email: string) => `You’re on the list. We’ll write to ${email} when Cerna opens.`,
     redirectedSuccess: 'You’re on the list. We’ll write when Cerna opens.',
     errors: {
@@ -18,6 +18,11 @@ export const copy = {
       rate_limited: 'Too many tries from this connection. Please try again in a few minutes.',
       save_failed: 'We couldn’t save your address just now, so you’re not on the list yet. Please try again in a minute.',
     } satisfies Record<WaitlistError, string>,
+  },
+  unsubscribe: {
+    title: 'Leave the waitlist?', body: 'We’ll delete your address and won’t write to you again.', button: 'Unsubscribe',
+    doneTitle: 'You’re off the list.', doneBody: 'Your address is deleted. You can join again any time.', back: 'Back to Cerna',
+    invalidTitle: 'This link doesn’t work.', invalidBody: 'Copy the whole link from the email, or write to us.',
   },
   featuresHeading: 'The tidying is Cerna’s job. The decisions stay yours.',
   features: [

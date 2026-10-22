@@ -5,7 +5,7 @@ export interface LegalDoc { title: string; updated: string; intro: string; secti
 
 export const privacy: LegalDoc = {
   title: 'Privacy notice',
-  updated: '2026-10-20',
+  updated: '2026-10-22',
   intro: 'This notice covers this website and the waitlist. It does not cover the Cerna product itself, which will have its own notice before anyone uses it.',
   sections: [
     {
@@ -17,14 +17,14 @@ export const privacy: LegalDoc = {
       items: [
         'Your email address, as you typed it (we lower-case it and trim spaces).',
         'The time you joined.',
-        'The wording you agreed to, "One email when Cerna opens, nothing else.", and its version.',
+        'The wording you agreed to, "Get notified when we launch.", and its version.',
       ],
       paragraphs: ['We do not collect your name, your device details, your location or anything else about you from the form.'],
     },
     {
       heading: 'What we do with it',
       paragraphs: [
-        'We use your address to write to you once, when Cerna opens, and to tell you what you need to try it. When someone joins, we also get an email telling us the new address, so we can see the list is working.',
+        'We send you one welcome email when you join, and we write to you when Cerna opens with what you need to try it. When someone joins, we also get an email telling us the new address, so we can see the list is working.',
         'You asked for this by joining. You can withdraw at any time (see "Your rights").',
         'We do not show ads and we do not sell or rent your address.',
       ],
@@ -39,7 +39,7 @@ export const privacy: LegalDoc = {
       heading: 'Who else handles your data',
       items: [
         'Cloudflare hosts this site and stores the waitlist in a database set to the EU jurisdiction. Cloudflare is a US company; {{CLOUDFLARE_TRANSFER_BASIS}}.',
-        'Brevo (a French company, servers in the EU) sends the notification email to us. It does not email you.',
+        'Brevo (a French company, servers in the EU) sends the welcome email to you and the notification email to us.',
         'Our own mailbox, hosted by Google, receives that notification and so holds each new address; {{GOOGLE_TRANSFER_BASIS}}.',
       ],
       paragraphs: ['These providers act on our instructions. We do not share your address with anyone else.'],
@@ -57,6 +57,7 @@ export const privacy: LegalDoc = {
     {
       heading: 'Your rights',
       paragraphs: [
+        'Every email has an unsubscribe link; using it deletes your address straight away.',
         'You can ask us what we hold about you, correct it, delete it, or withdraw your agreement, and you can ask for a copy of it. Email {{CONTACT_EMAIL}}; we will answer within 30 days. Deleting your address means we will not write to you when Cerna opens.',
         'If you think we have handled your data wrongly, you can complain to the Federal Data Protection and Information Commissioner (FDPIC) in Switzerland, or to the data protection authority where you live.',
       ],

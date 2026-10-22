@@ -4,3 +4,5 @@ RATE_LIMIT_HMAC_KEY=replace-with-a-random-local-secret
 BREVO_API_KEY=replace-only-if-testing-real-email
 EMAIL_ENABLED=false
 ADMIN_NOTIFY_TO=you@example.com
+UNSUBSCRIBE_HMAC_KEY=replace-with-a-random-high-entropy-local-secret
+CONSENT_VERSION=2026-10-22

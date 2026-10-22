@@ -1,9 +1,10 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-export function database(): { db: D1Database; sqlite: DatabaseSync } {
+export function database(migrate = true): { db: D1Database; sqlite: DatabaseSync } {
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec('PRAGMA foreign_keys=ON');
   sqlite.exec(readFileSync(new URL('../../migrations/0001_waitlist.sql', import.meta.url), 'utf8'));
+  if (migrate) sqlite.exec(readFileSync(new URL('../../migrations/0002_welcome_unsubscribe.sql', import.meta.url), 'utf8'));
   class Statement {
     constructor(readonly sql: string, readonly values: unknown[] = []) {}
     bind(...values: unknown[]) { return new Statement(this.sql, values); }

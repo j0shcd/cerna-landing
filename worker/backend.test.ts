@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { unsubscribeToken, verifyUnsubscribeToken } from './unsubscribe';
+import { welcomeEmail } from './emails/welcome';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import worker from './index';
 import { database } from './test-support/d1';
@@ -21,7 +24,7 @@ async function post(email: unknown = 'user@example.eu', company = '', form = fal
 async function drain() { await Promise.all(tasks); tasks = []; }
 beforeEach(() => {
   store = database(); tasks = [];
-  env = { WAITLIST_DB: store.db, SITE_ORIGIN: 'https://cerna.example', MAIL_FROM: 'waitlist@cerna.example', MAIL_FROM_NAME: 'Cerna', ADMIN_NOTIFY_TO: 'owner@example.eu', CONSENT_VERSION: '2026-10-20', EMAIL_ENABLED: 'false', BREVO_API_KEY: 'secret-test-key', RATE_LIMIT_HMAC_KEY: 'test-hmac-key' };
+  env = { WAITLIST_DB: store.db, SITE_ORIGIN: 'https://cerna.example', MAIL_FROM: 'waitlist@cerna.example', MAIL_FROM_NAME: 'Cerna', ADMIN_NOTIFY_TO: 'owner@example.eu', CONSENT_VERSION: '2026-10-22', EMAIL_ENABLED: 'false', BREVO_API_KEY: 'secret-test-key', RATE_LIMIT_HMAC_KEY: 'test-hmac-key', UNSUBSCRIBE_HMAC_KEY: 'unsubscribe-test-secret' };
   ctx = { waitUntil(task: Promise<unknown>) { tasks.push(task); } } as ExecutionContext;
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -30,17 +33,17 @@ beforeEach(() => {
 afterEach(async () => { await drain(); store.sqlite.close(); vi.restoreAllMocks(); });
 
 describe('waitlist', () => {
-  it('saves consent and queues one owner notification', async () => {
+  it('saves consent and queues owner notification and welcome', async () => {
     const response = await post();
     expect(response.status).toBe(200); expect(await response.json()).toEqual({ ok: true });
-    expect(rows('waitlist_signups')).toEqual([expect.objectContaining({ email: 'user@example.eu', consent_text: 'One email when Cerna opens, nothing else.', consent_version: '2026-10-20', source: 'landing' })]);
-    expect(rows('outbox')).toHaveLength(1);
+    expect(rows('waitlist_signups')).toEqual([expect.objectContaining({ email: 'user@example.eu', consent_text: 'Get notified when we launch.', consent_version: '2026-10-22', source: 'landing' })]);
+    expect(rows('outbox')).toHaveLength(2);
   });
   it('duplicates and case/whitespace/NFKC variants have identical success and queue nothing extra', async () => {
     for (const email of ['User@Example.eu', ' user@example.eu ', 'ｕｓｅｒ@example.eu']) {
       const response = await post(email); expect(await response.json()).toEqual({ ok: true });
     }
-    expect(rows('waitlist_signups')).toHaveLength(1); expect(rows('outbox')).toHaveLength(1);
+    expect(rows('waitlist_signups')).toHaveLength(1); expect(rows('outbox')).toHaveLength(2);
   });
   it.each(['', 'a', 'a@b', '@example.eu', 'a@@example.eu', 'a@.eu', 'a@example.', 'a@ex..eu', 'a b@example.eu', 'a\u0000@example.eu', 'a\u200b@example.eu', `${'a'.repeat(250)}@x.eu`, null, 42])('rejects invalid email %s', async email => {
     expect(normalizeEmail(email)).toBeNull();
@@ -124,6 +127,11 @@ describe('waitlist', () => {
     expect((await post()).status).toBe(500);
     expect(rows('waitlist_signups')).toHaveLength(0);
   });
+  it('rolls back signup and owner row if the welcome insert fails', async () => {
+    store.sqlite.exec("CREATE TRIGGER reject_welcome BEFORE INSERT ON outbox WHEN NEW.kind='welcome' BEGIN SELECT RAISE(ABORT, 'test'); END");
+    expect((await post()).status).toBe(500);
+    expect(rows('waitlist_signups')).toHaveLength(0); expect(rows('outbox')).toHaveLength(0);
+  });
   it('routes health, 404 and method errors with Allow', async () => {
     for (const [path, method, status, allow] of [['/api/health', 'GET', 200, null], ['/api/health', 'POST', 405, 'GET'], ['/api/waitlist', 'GET', 405, 'POST'], ['/api/missing', 'GET', 404, null]] as const) {
       const response = await worker.fetch(new Request(`https://cerna.example${path}`, { method }), env, ctx);
@@ -140,7 +148,7 @@ describe('waitlist', () => {
 });
 
 describe('outbox', () => {
-  async function seed() { await post(); await drain(); env.EMAIL_ENABLED = 'true'; }
+  async function seed() { await post(); await drain(); store.sqlite.exec("DELETE FROM outbox WHERE kind='welcome'"); env.EMAIL_ENABLED = 'true'; }
   it('sends with the owned sender and marks sent', async () => {
     await seed(); const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 201 }));
     await processOutbox(env, { now: () => start, send });
@@ -187,7 +195,7 @@ describe('outbox', () => {
     await processOutbox(env, { now: () => start, send });
     expect(console.log).toHaveBeenCalledExactlyOnceWith(JSON.stringify({ event: 'email disabled' }));
     expect(rows('outbox')[0]).toMatchObject({ status: 'pending', attempts: 0 }); expect(send).not.toHaveBeenCalled();
-    env.EMAIL_ENABLED = 'true'; await processOutbox(env, { now: () => start, send }); expect(send).toHaveBeenCalledTimes(1);
+    env.EMAIL_ENABLED = 'true'; await processOutbox(env, { now: () => start, send }); expect(send).toHaveBeenCalledTimes(2);
   });
   it('cleans expired counters with email disabled without touching pending rows', async () => {
     await post(); await drain();
@@ -219,7 +227,7 @@ describe('outbox', () => {
       await drain();
       expect(rows('waitlist_signups')).toHaveLength(1);
       expect(rows('outbox')[0]).toMatchObject({ status: 'pending', attempts: 1 });
-      expect(send).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledTimes(2);
     } finally { vi.unstubAllGlobals(); }
   });
   it('the scheduled entry point drains a due retry through waitUntil', async () => {
@@ -241,5 +249,112 @@ describe('outbox', () => {
     env.EMAIL_ENABLED = 'true'; const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 201 }));
     await processOutbox(env, { now: () => start, send }); expect(send).toHaveBeenCalledTimes(20);
     expect(rows('outbox').filter(row => row.status === 'pending')).toHaveLength(1);
+  });
+});
+
+describe('welcome and unsubscribe', () => {
+  async function seed() {
+    await post(); await drain();
+    const id = rows('waitlist_signups')[0]!.id as string;
+    return unsubscribeToken(id, env.UNSUBSCRIBE_HMAC_KEY);
+  }
+  function remove(token: string, encoding = 'query', headers: Record<string, string> = {}) {
+    const query = ['query', 'one-click'].includes(encoding) ? `?token=${token}` : '';
+    const type = encoding === 'json' ? 'application/json' : 'application/x-www-form-urlencoded';
+    const body = encoding === 'json' ? JSON.stringify({ token }) : encoding === 'one-click' ? 'List-Unsubscribe=One-Click' : encoding === 'form' ? new URLSearchParams({ token }).toString() : '';
+    return worker.fetch(new Request(`https://cerna.example/api/unsubscribe${query}`, {
+      method: 'POST', headers: { 'Content-Type': encoding === 'query' ? 'text/plain' : type, 'CF-Connecting-IP': '203.0.113.43', ...headers }, body,
+    }), env, ctx);
+  }
+  it('migrates old consent and delivery state without losing rows or indexes', () => {
+    const old = database(false);
+    try {
+      old.sqlite.exec("INSERT INTO waitlist_signups VALUES ('old','old@example.eu','2026-10-20','old-version','One email when Cerna opens, nothing else.','landing')");
+      old.sqlite.exec("INSERT INTO outbox VALUES ('delivery','old','owner_notification','sent',3,'2026-10-20',NULL,NULL,'2026-10-20')");
+      const signup = old.sqlite.prepare('SELECT * FROM waitlist_signups').all();
+      const outbox = old.sqlite.prepare('SELECT * FROM outbox').all();
+      old.sqlite.exec('BEGIN');
+      old.sqlite.exec(readFileSync(new URL('../migrations/0002_welcome_unsubscribe.sql', import.meta.url), 'utf8'));
+      old.sqlite.exec('COMMIT');
+      expect(old.sqlite.prepare('SELECT * FROM waitlist_signups').all()).toEqual(signup);
+      expect(old.sqlite.prepare('SELECT * FROM outbox').all()).toEqual(outbox);
+      expect(old.sqlite.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+      for (const name of ['outbox_due', 'signups_created', 'rate_limits_expiry']) {
+        expect(old.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name=?").all(name)).toHaveLength(1);
+      }
+      old.sqlite.exec("INSERT INTO outbox(id,signup_id,kind,next_attempt_at) VALUES ('welcome','old','welcome','2026-10-22')");
+      expect(() => old.sqlite.exec("INSERT INTO outbox(id,signup_id,kind,next_attempt_at) VALUES ('duplicate','old','welcome','2026-10-22')")).toThrow();
+      old.sqlite.exec("DELETE FROM waitlist_signups WHERE id='old'");
+      expect(old.sqlite.prepare('SELECT * FROM outbox').all()).toEqual([]);
+    } finally { old.sqlite.close(); }
+  });
+  it('sends the unchanged welcome template and signed unsubscribe headers to the signup', async () => {
+    const token = await seed();
+    expect(rows('outbox').map(row => row.kind).sort()).toEqual(['owner_notification', 'welcome']);
+    env.EMAIL_ENABLED = 'true';
+    const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response(null, { status: 201 }));
+    await processOutbox(env, { now: () => start, send });
+    const bodies = send.mock.calls.map(([, options]) => JSON.parse(options!.body as string));
+    expect(bodies).toHaveLength(2);
+    const body = bodies.find(body => body.to[0].email === 'user@example.eu');
+    const message = welcomeEmail(`${env.SITE_ORIGIN}/unsubscribe?token=${token}`);
+    expect(body).toMatchObject({ sender: { name: env.MAIL_FROM_NAME, email: env.MAIL_FROM }, subject: message.subject, textContent: message.text, htmlContent: message.html,
+      headers: { 'List-Unsubscribe': `<${env.SITE_ORIGIN}/api/unsubscribe?token=${token}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } });
+    const sentToken = new URL(body.headers['List-Unsubscribe'].slice(1, -1)).searchParams.get('token');
+    expect(await verifyUnsubscribeToken(sentToken, env.UNSUBSCRIBE_HMAC_KEY)).toBe(rows('waitlist_signups')[0]!.id);
+    expect(bodies.find(body => body.to[0].email === env.ADMIN_NOTIFY_TO).subject).toBe('New Cerna waitlist signup');
+    expect(rows('outbox').every(row => row.status === 'sent')).toBe(true);
+    const logs = JSON.stringify([vi.mocked(console.log).mock.calls, vi.mocked(console.error).mock.calls]);
+    for (const value of ['user@example.eu', env.UNSUBSCRIBE_HMAC_KEY, token]) expect(logs).not.toContain(value);
+  });
+  it.each(['query', 'json', 'one-click', 'form'])('deletes signup and both outbox rows via %s, idempotently', async encoding => {
+    const token = await seed();
+    for (let i = 0; i < 2; i++) {
+      const response = await remove(token, encoding);
+      expect(response.status).toBe(encoding === 'form' ? 303 : 200);
+      if (encoding === 'form') expect(response.headers.get('Location')).toBe('/unsubscribe?done=1');
+      else expect(await response.json()).toEqual({ ok: true });
+      expect(rows('waitlist_signups')).toHaveLength(0);
+      expect(rows('outbox')).toHaveLength(0);
+    }
+  });
+  it('rejects tampered, wrong-key and malformed tokens without deleting', async () => {
+    const token = await seed();
+    const tampered = token.slice(0, -1) + (token.endsWith('0') ? '1' : '0');
+    const wrongKey = await unsubscribeToken(token.split('.')[0]!, 'wrong-key');
+    for (const value of [tampered, wrongKey, 'abc', '']) {
+      const response = await remove(value);
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ ok: false, error: 'invalid_token' });
+      expect(rows('waitlist_signups')).toHaveLength(1);
+      expect(rows('outbox')).toHaveLength(2);
+    }
+    const response = await remove(tampered, 'form');
+    expect(response.status).toBe(303); expect(response.headers.get('Location')).toBe('/unsubscribe?error=invalid_token');
+  });
+  it('GET preserves query and never deletes; other methods return Allow', async () => {
+    const token = await seed();
+    const response = await worker.fetch(new Request(`https://cerna.example/api/unsubscribe?token=${token}&extra=1`), env, ctx);
+    expect(response.status).toBe(303); expect(response.headers.get('Location')).toBe(`/unsubscribe?token=${token}&extra=1`);
+    expect(rows('waitlist_signups')).toHaveLength(1); expect(rows('outbox')).toHaveLength(2);
+    const rejected = await worker.fetch(new Request('https://cerna.example/api/unsubscribe', { method: 'PUT' }), env, ctx);
+    expect(rejected.status).toBe(405); expect(rejected.headers.get('Allow')).toBe('GET, POST');
+  });
+  it('shares the waitlist limiter and checks origins', async () => {
+    const token = await seed();
+    expect((await remove(token, 'query', { Origin: 'https://attacker.eu' })).status).toBe(403);
+    expect((await remove(token, 'query', { Referer: 'https://attacker.eu/page' })).status).toBe(403);
+    for (let i = 0; i < 4; i++) await post();
+    const response = await remove(token, 'query', { 'CF-Connecting-IP': '203.0.113.42' });
+    expect(response.status).toBe(429); expect(await response.json()).toEqual({ ok: false, error: 'rate_limited' });
+    const oneClick = await remove(token, 'one-click', { 'CF-Connecting-IP': '203.0.113.42' });
+    expect(oneClick.status).toBe(429); expect(await oneClick.json()).toEqual({ ok: false, error: 'rate_limited' });
+    expect(rows('waitlist_signups')).toHaveLength(1);
+  });
+  it.each(['{', JSON.stringify({ token: 'x'.repeat(2048) })])('rejects malformed or oversized bodies', async body => {
+    await seed();
+    const response = await worker.fetch(new Request('https://cerna.example/api/unsubscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }), env, ctx);
+    expect(response.status).toBe(400); expect(await response.json()).toEqual({ ok: false, error: 'invalid_token' });
+    expect(rows('waitlist_signups')).toHaveLength(1);
   });
 });

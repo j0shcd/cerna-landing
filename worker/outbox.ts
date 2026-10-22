@@ -1,6 +1,6 @@
 import type { Env } from './env';
-import { sendNotification } from './brevo';
-interface Row { id: string; signup_id: string; attempts: number }
+import { sendNotification, sendWelcome } from './brevo';
+interface Row { id: string; signup_id: string; attempts: number; kind: 'owner_notification' | 'welcome' }
 export async function processOutbox(env: Env, deps: { now?: () => number; send?: typeof fetch } = {}): Promise<void> {
   const clock = deps.now ?? Date.now;
   const db = env.WAITLIST_DB;
@@ -8,7 +8,7 @@ export async function processOutbox(env: Env, deps: { now?: () => number; send?:
   await db.prepare('DELETE FROM rate_limits WHERE window_start < ?').bind(Math.floor(clock() / 86_400_000) * 86_400_000 - 86_400_000).run();
   if (env.EMAIL_ENABLED !== 'true') { console.log(JSON.stringify({ event: 'email disabled' })); return; }
   const now = new Date(clock()).toISOString();
-  const rows = await db.prepare(`SELECT id, signup_id, attempts FROM outbox
+  const rows = await db.prepare(`SELECT id, signup_id, attempts, kind FROM outbox
     WHERE status='pending' AND next_attempt_at <= ? AND (locked_until IS NULL OR locked_until < ?)
     ORDER BY next_attempt_at, id LIMIT 20`).bind(now, now).all<Row>();
   for (const row of rows.results) {
@@ -24,7 +24,7 @@ export async function processOutbox(env: Env, deps: { now?: () => number; send?:
     if (!attempt) {
       await db.prepare(`UPDATE outbox SET status='failed', locked_until=NULL, last_error='attempts_exhausted'
         WHERE id=? AND locked_until=?`).bind(row.id, lock).run();
-      console.error(JSON.stringify({ event: 'notification_failed', reason: 'attempts_exhausted' }));
+      console.error(JSON.stringify({ event: 'outbox_failed', reason: 'attempts_exhausted' }));
       continue;
     }
     let sent = false;
@@ -32,20 +32,21 @@ export async function processOutbox(env: Env, deps: { now?: () => number; send?:
       const signup = await db.prepare('SELECT email, created_at FROM waitlist_signups WHERE id=?').bind(row.signup_id).first<{ email: string; created_at: string }>();
       const total = await db.prepare('SELECT COUNT(*) AS total FROM waitlist_signups').first<{ total: number }>();
       if (!signup || !total) throw new Error('missing_signup');
-      await sendNotification(env, signup, total.total, deps.send);
+      if (row.kind === 'welcome') await sendWelcome(env, signup.email, row.signup_id, deps.send);
+      else await sendNotification(env, signup, total.total, deps.send);
       sent = true;
     } catch { /* Use a fixed error code; never log email, credentials or vendor text. */ }
     const finished = clock();
     if (sent) {
       await db.prepare(`UPDATE outbox SET status='sent', sent_at=?, locked_until=NULL, last_error=NULL
         WHERE id=? AND locked_until=?`).bind(new Date(finished).toISOString(), row.id, lock).run();
-      console.log(JSON.stringify({ event: 'notification_sent' }));
+      console.log(JSON.stringify({ event: 'outbox_sent' }));
     } else {
       const failed = attempt.attempts >= 10;
       const retry = new Date(finished + Math.min(60_000 * 2 ** (attempt.attempts - 1), 21_600_000)).toISOString();
       await db.prepare(`UPDATE outbox SET status=?, next_attempt_at=?, last_error='notification_send_failed', locked_until=NULL
         WHERE id=? AND locked_until=?`).bind(failed ? 'failed' : 'pending', retry, row.id, lock).run();
-      (failed ? console.error : console.log)(JSON.stringify({ event: failed ? 'notification_failed' : 'notification_retry', attempts: attempt.attempts }));
+      (failed ? console.error : console.log)(JSON.stringify({ event: failed ? 'outbox_failed' : 'outbox_retry', attempts: attempt.attempts }));
     }
   }
 }

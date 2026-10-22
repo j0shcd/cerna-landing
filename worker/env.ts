@@ -8,4 +8,5 @@ export interface Env {
   EMAIL_ENABLED: string;
   BREVO_API_KEY: string;
   RATE_LIMIT_HMAC_KEY: string;
+  UNSUBSCRIBE_HMAC_KEY: string;
 }

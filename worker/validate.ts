@@ -1,4 +1,4 @@
-export const CONSENT_TEXT = 'One email when Cerna opens, nothing else.';
+export const CONSENT_TEXT = 'Get notified when we launch.';
 export function normalizeEmail(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const email = value.normalize('NFKC').trim().toLowerCase();

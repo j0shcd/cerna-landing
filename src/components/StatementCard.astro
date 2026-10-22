@@ -5,7 +5,7 @@ const s = copy.statement;
 <figure class="statement" aria-label={s.label} data-statement>
   <div class="st-head">
     <div class="files">{s.files.map(file => <span class="file">{file}</span>)}</div>
-    <span class="st-status fig" data-status><b>{s.doneLead}</b> · {s.done}</span>
+    <span class="st-status fig" data-status><b data-status-lead>{s.doneLead}</b><span data-status-rest> · {s.done}</span></span>
   </div>
   <ul class="tx">
     {s.rows.map(row => <li class={'duplicate' in row ? 'gone' : 'ok'} data-dup={'duplicate' in row ? '' : undefined} aria-hidden={'duplicate' in row ? 'true' : undefined}>
@@ -25,20 +25,34 @@ const s = copy.statement;
   const card = document.querySelector<HTMLElement>('[data-statement]')!;
   const rows = [...card.querySelectorAll<HTMLLIElement>('.tx li')];
   const status = card.querySelector<HTMLElement>('[data-status]')!;
+  const statusLead = status.querySelector<HTMLElement>('[data-status-lead]')!;
+  const statusRest = status.querySelector<HTMLElement>('[data-status-rest]')!;
   const sum = card.querySelector<HTMLElement>('[data-sum]')!;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
   let timers: number[] = [];
   const later = (fn: () => void, ms: number) => timers.push(window.setTimeout(fn, ms));
-  function reset() {
-    timers.forEach(clearTimeout); timers = [];
-    // Jump to the raw state without transitions, then reserve that five-row height so
-    // neither the reset nor the duplicate collapsing ever moves the page.
+  function reserveRawHeight(restore = true) {
+    const previous = rows.map(row => ({ classes: row.getAttribute('class'), hidden: row.getAttribute('aria-hidden') }));
     card.classList.add('instant');
     rows.forEach(row => { row.className = ''; row.removeAttribute('aria-hidden'); });
     card.parentElement!.style.minHeight = `${card.offsetHeight}px`;
+    if (restore) rows.forEach((row, index) => {
+      const { classes, hidden } = previous[index]!;
+      if (classes === null) row.removeAttribute('class');
+      else row.setAttribute('class', classes);
+      if (hidden === null) row.removeAttribute('aria-hidden');
+      else row.setAttribute('aria-hidden', hidden);
+    });
     void card.offsetHeight;
     card.classList.remove('instant');
-    status.textContent = s.reading;
+  }
+  // Reserve before any interaction, including return visits with the settled card.
+  reserveRawHeight();
+  function reset() {
+    timers.forEach(clearTimeout); timers = [];
+    reserveRawHeight(false);
+    statusLead.textContent = '';
+    statusRest.textContent = s.reading;
     sum.textContent = s.found;
   }
   function finish() {
@@ -49,7 +63,8 @@ const s = copy.statement;
       if (isDuplicate) row.setAttribute('aria-hidden', 'true');
       else row.removeAttribute('aria-hidden');
     });
-    status.innerHTML = `<b>${s.doneLead}</b> · ${s.done}`;
+    statusLead.textContent = s.doneLead;
+    statusRest.textContent = ` · ${s.done}`;
     sum.textContent = s.summary;
   }
   function play() {

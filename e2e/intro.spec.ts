@@ -2,7 +2,15 @@ import { expect, test } from '@playwright/test';
 
 // A first-session visit plays the intro and the statement sequence (see src/layouts/Base.astro).
 const topOf = (selector: string) => (page: import('@playwright/test').Page) =>
-  page.$eval(selector, element => element.getBoundingClientRect().top + scrollY);
+  page.$eval(selector, element => {
+    let top = 0;
+    let current: HTMLElement | null = element as HTMLElement;
+    while (current) {
+      top += current.offsetTop;
+      current = current.offsetParent as HTMLElement | null;
+    }
+    return top;
+  });
 
 test('the statement sequence never moves the page below it', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -49,4 +57,18 @@ test('on a phone the sequence does not start while less than half the card is vi
 
   await card.scrollIntoViewIfNeeded();
   await expect(page.locator('[data-status]')).toHaveText(/Done/, { timeout: 10_000 });
+});
+
+test('on a return phone visit Replay never moves the page below the card', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('cerna-intro', '1'));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.locator('[data-replay]').scrollIntoViewIfNeeded();
+  const beatsTop = topOf('.beats');
+  const before = await beatsTop(page);
+  await page.locator('[data-replay]').click();
+  await expect(page.locator('[data-status]')).toHaveText(/Reading/);
+  await expect(page.locator('[data-status]')).toHaveText(/Done/, { timeout: 10_000 });
+  await page.waitForTimeout(800); // let the collapse transition finish
+  expect(Math.abs((await beatsTop(page)) - before)).toBeLessThanOrEqual(1);
 });

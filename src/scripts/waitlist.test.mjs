@@ -8,12 +8,12 @@ assert.ok(bundle, 'Run npx astro build before this test');
 let run = 0;
 function element() {
   return {
-    textContent: '', value: '', disabled: false, validity: { valid: true }, listeners: {}, attributes: {}, focused: false,
-    classList: { values: new Set(), add(name) { this.values.add(name); }, contains(name) { return this.values.has(name); } },
+    textContent: '', value: '', disabled: false, validity: { valid: true }, listeners: {}, attributes: {}, focused: false, focusCount: 0,
+    classList: { values: new Set(), add(name) { this.values.add(name); }, contains(name) { return this.values.has(name); }, remove(name) { this.values.delete(name); } },
     addEventListener(name, fn) { this.listeners[name] = fn; },
     setAttribute(name, value) { this.attributes[name] = value; },
     removeAttribute(name) { delete this.attributes[name]; },
-    focus() { this.focused = true; },
+    focus() { this.focused = true; this.focusCount++; },
   };
 }
 function box() {
@@ -22,11 +22,34 @@ function box() {
   wrapper.querySelector = selector => ({ form, button, '.form-status': status, '[name="email"]': email })[selector];
   return Object.assign(wrapper, { email, company, status, button, form });
 }
-async function setup(search = '') {
+async function setup(search = '', browser = false) {
   const boxes = [box(), box()];
   globalThis.document = { querySelectorAll: () => boxes };
   globalThis.location = { search };
   globalThis.window = { setTimeout };
+  delete globalThis.matchMedia;
+  if (browser) {
+    const timers = new Map(), listeners = new Map();
+    let timerId = 0;
+    globalThis.matchMedia = () => ({ matches: true });
+    globalThis.innerHeight = 844;
+    document.addEventListener = (name, listener) => { document[name] = listener; };
+    window.addEventListener = (name, listener) => { listeners.set(name, listener); };
+    window.removeEventListener = (name, listener) => {
+      if (listeners.get(name) === listener) listeners.delete(name);
+    };
+    window.setTimeout = (fn, ms) => { timers.set(++timerId, { fn, ms }); return timerId; };
+    // clearTimeout is global in the shipped module; route fake timer IDs locally.
+    const nativeClear = globalThis.clearTimeout;
+    globalThis.clearTimeout = id => { timers.delete(id); };
+    boxes.browser = { timers, listeners, restore: () => { globalThis.clearTimeout = nativeClear; delete globalThis.Element; } };
+    globalThis.Element = class { closest(selector) { return selector === '[data-call-waitlist]' ? this : null; } };
+    globalThis.history = { replaceState() {} };
+    for (const box of boxes) {
+      box.getBoundingClientRect = () => ({ top: 900, bottom: 1100 });
+      box.scrollIntoView = options => { box.scrollOptions = options; };
+    }
+  }
   await import(new URL(`../../dist/_astro/${bundle}?run=${run++}`, import.meta.url));
   return boxes;
 }
@@ -104,3 +127,26 @@ test('native redirect parameters show shared success or a known error only', asy
   boxes = await setup('?error=untrusted');
   assert.ok(boxes.every(box => box.status.textContent === ''));
 });
+
+for (const trigger of ['scrollend', 'timeout']) {
+  test(`waitlist call cleans up both scroll callbacks after ${trigger}`, async () => {
+    const boxes = await setup('', true);
+    const { timers, listeners, restore } = boxes.browser;
+    try {
+      document.click({ target: new Element(), button: 0, preventDefault() {} });
+      assert.deepEqual(boxes[0].scrollOptions, { behavior: 'auto', block: 'center' });
+      assert.equal(listeners.size, 1);
+      assert.equal(timers.size, 1);
+      const finishScroll = listeners.get('scrollend');
+      const fallback = [...timers.values()][0];
+      assert.equal(fallback.ms, 900);
+      (trigger === 'scrollend' ? finishScroll : fallback.fn)();
+      assert.equal(listeners.size, 0);
+      assert.equal(timers.size, 0);
+      assert.equal(boxes[0].email.focusCount, 1);
+      // Even an already queued stale callback cannot focus again.
+      (trigger === 'scrollend' ? fallback.fn : finishScroll)();
+      assert.equal(boxes[0].email.focusCount, 1);
+    } finally { restore(); }
+  });
+}

@@ -5,14 +5,14 @@
 
 /* Tokens follow design/reference/d5-design-led; the category pigments are the pop of colour. */
 :root {
-  --paper: #fafaf7; --sheet: #fff; --ink: #17191c; --graphite: #555a60; --muted: #63686e;
-  --cell: #e4e5e0; --cell-head: #f1f1ec; --line: #cdcfc8;
-  --cobalt: #2f44a6; --cobalt-hover: #26388c; --on-cobalt: #fff; --wash: #e9ecf8; --done: #1f6b52; --dup: #fbf6ec; --error: #9a3412;
-  --attention: #8a5e00; --attention-line: #d9c08a; --cell-err: #a23f4c; --mark: #fff0b8;
-  --dot-groceries: #7c8d68; --dot-transport: #708aa0; --dot-restaurants: #a07f62; --dot-other: #8c857d;
-  --shadow-card: 0 1px 0 #17191c0a, 0 30px 60px -40px #17191c59; --shadow-field: 0 1px 0 #17191c08, 0 8px 24px -16px #17191c40; --shadow-pop: 0 12px 28px -12px #17191c40;
-  --sage: #dfe8d6; --slate: #dbe5ef; --rose: #f1dcdc; --ochre: #f3e5c1; --violet: #e5e0f0;
-  --sage-ink: #3d5a2a; --slate-ink: #2c4a66; --rose-ink: #7a3436; --ochre-ink: #6b4a00; --violet-ink: #4a3f7a;
+  --paper: light-dark(#fafaf7, #1c1915); --sheet: light-dark(#fff, #25211c); --ink: light-dark(#17191c, #ece4d5); --graphite: light-dark(#555a60, #b3a898); --muted: light-dark(#63686e, #9a907f);
+  --cell: light-dark(#e4e5e0, #322d27); --cell-head: light-dark(#f1f1ec, #2a2520); --line: light-dark(#cdcfc8, #4a4239);
+  --cobalt: light-dark(#2f44a6, #93aeea); --cobalt-hover: light-dark(#26388c, #afc3f0); --on-cobalt: light-dark(#fff, #1c1915); --wash: light-dark(#e9ecf8, #2a3041); --done: light-dark(#1f6b52, #7fbfa2); --dup: light-dark(#fbf6ec, #332b1e); --error: light-dark(#9a3412, #ee8b95);
+  --attention: light-dark(#8a5e00, #d6a853); --attention-line: light-dark(#d9c08a, #6e5a32); --cell-err: light-dark(#a23f4c, #ee8b95); --mark: light-dark(#fff0b8, #5a4a1f);
+  --dot-groceries: light-dark(#7c8d68, #8ea079); --dot-transport: light-dark(#708aa0, #829cb3); --dot-restaurants: light-dark(#a07f62, #b39174); --dot-other: light-dark(#8c857d, #9e978f);
+  --shadow-card: 0 1px 0 #17191c0a, 0 30px 60px -40px #17191c59; --shadow-field: 0 1px 0 #17191c08, 0 8px 24px -16px #17191c40; --shadow-pop: 0 12px 28px -12px light-dark(#17191c40, #000000a0);
+  --sage: light-dark(#dfe8d6, #2f3628); --slate: light-dark(#dbe5ef, #27313b); --rose: light-dark(#f1dcdc, #3b2b2c); --ochre: light-dark(#f3e5c1, #3b3123); --violet: light-dark(#e5e0f0, #2f2b3b);
+  --sage-ink: light-dark(#3d5a2a, #bccaa9); --slate-ink: light-dark(#2c4a66, #abc1d6); --rose-ink: light-dark(#7a3436, #e3b6b7); --ochre-ink: light-dark(#6b4a00, #e3c27f); --violet-ink: light-dark(#4a3f7a, #c5bee2);
   --display: 'Familjen Grotesk Variable', system-ui, sans-serif;
   --body: 'Newsreader Variable', Georgia, serif;
   --figure: 'Space Grotesk Variable', ui-monospace, monospace;
@@ -24,32 +24,19 @@
   --gutter: clamp(16px, 4vw, 56px); --pad-l: max(var(--gutter), env(safe-area-inset-left)); --pad-r: max(var(--gutter), env(safe-area-inset-right)); --measure: 34rem;
   --cols: 12; --cell-h: 36px;
   --radius: 6px; --ease: cubic-bezier(.2,.7,.2,1);
-  color-scheme: light;
+  --shadow-card-dark: 0 0 0 1px #00000040; --shadow-field-dark: none;
+  color-scheme: light dark;
 }
 /* Dark follows the app's warm-ink theme (cerna-app DESIGN.md §2): never pure black, elevation from lightness, not shadow. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --paper: #1c1915; --sheet: #25211c; --ink: #ece4d5; --graphite: #b3a898; --muted: #9a907f;
-    --cell: #322d27; --cell-head: #2a2520; --line: #4a4239;
-    --cobalt: #93aeea; --cobalt-hover: #afc3f0; --on-cobalt: #1c1915; --wash: #2a3041; --done: #7fbfa2; --dup: #332b1e; --error: #ee8b95;
-    --attention: #d6a853; --attention-line: #6e5a32; --cell-err: #ee8b95; --mark: #5a4a1f;
-    --sage: #2f3628; --slate: #27313b; --rose: #3b2b2c; --ochre: #3b3123; --violet: #2f2b3b;
-    --sage-ink: #bccaa9; --slate-ink: #abc1d6; --rose-ink: #e3b6b7; --ochre-ink: #e3c27f; --violet-ink: #c5bee2;
-    --dot-groceries: #8ea079; --dot-transport: #829cb3; --dot-restaurants: #b39174; --dot-other: #9e978f;
-    --shadow-card: 0 0 0 1px #00000040; --shadow-field: none; --shadow-pop: 0 12px 28px -12px #000000a0;
-  }
-}
+:root[data-theme='light'] { color-scheme: light; }
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --paper: #1c1915; --sheet: #25211c; --ink: #ece4d5; --graphite: #b3a898; --muted: #9a907f;
-  --cell: #322d27; --cell-head: #2a2520; --line: #4a4239;
-  --cobalt: #93aeea; --cobalt-hover: #afc3f0; --on-cobalt: #1c1915; --wash: #2a3041; --done: #7fbfa2; --dup: #332b1e; --error: #ee8b95;
-  --attention: #d6a853; --attention-line: #6e5a32; --cell-err: #ee8b95; --mark: #5a4a1f;
-  --sage: #2f3628; --slate: #27313b; --rose: #3b2b2c; --ochre: #3b3123; --violet: #2f2b3b;
-  --sage-ink: #bccaa9; --slate-ink: #abc1d6; --rose-ink: #e3b6b7; --ochre-ink: #e3c27f; --violet-ink: #c5bee2;
-  --dot-groceries: #8ea079; --dot-transport: #829cb3; --dot-restaurants: #b39174; --dot-other: #9e978f;
-  --shadow-card: 0 0 0 1px #00000040; --shadow-field: none; --shadow-pop: 0 12px 28px -12px #000000a0;
+  --shadow-card: var(--shadow-card-dark); --shadow-field: var(--shadow-field-dark);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --shadow-card: var(--shadow-card-dark); --shadow-field: var(--shadow-field-dark);
+  }
 }
 @theme inline {
   --color-paper: var(--paper); --color-ink: var(--ink); --color-cobalt: var(--cobalt);

@@ -28,6 +28,7 @@ export const copy = {
   closing: 'Close the spreadsheet.',
   privacyTitle: 'Private by default.',
   privacy: 'Your statements are read to serve you, and no one else. We will never serve you ads, and never sell your data. Leave whenever you like and take everything with you.',
+  legal: { label: 'Legal', privacy: 'Privacy notice', impressum: 'Impressum' },
   copyright: '©', replay: 'Replay', check: '✓',
   statement: {
     label: 'Example: five raw bank lines become four tidy, categorised transactions in francs', files: ['ubs-oct.pdf', 'revolut-oct.csv'],
@@ -62,7 +63,7 @@ export const copy = {
     approve: (n: number) => `Approve ${n}`, approved: (n: number) => `${n} approved`, waits: 'TWINT waits for you', remember: 'Cerna will remember this.',
   },
   checkIn: {
-    label: 'Example monthly check-in', heading: 'September spending', total: "CHF 4'812", status: 'Within your usual', range: "Usual range: CHF 4'400–5'200",
+    label: 'Example monthly check-in', heading: 'September spending', total: "CHF 4'812", status: 'Within your usual',
     first: 'Restaurants CHF 140 above usual.', detail: 'Three more visits, similar bills.',
     second: 'Lisbon trip:', secondAmount: 'EUR 612.40', secondDetail: 'converted at each day’s rate.',
   },

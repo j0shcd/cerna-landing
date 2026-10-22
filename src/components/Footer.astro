@@ -6,7 +6,7 @@ import { copy } from '../content/copy';
     <span class="wordmark">{copy.brand}</span>
     <p class="privacy"><strong>{copy.privacyTitle}</strong>{copy.privacy}</p>
     <div class="meta fig">
-      <nav aria-label="Legal"><a href="/privacy">Privacy notice</a><a href="/impressum">Impressum</a></nav>
+      <nav aria-label={copy.legal.label}><a href="/privacy">{copy.legal.privacy}</a><a href="/impressum">{copy.legal.impressum}</a></nav>
       <span>{copy.copyright} {new Date().getFullYear()} {copy.brand}</span>
     </div>
   </div>

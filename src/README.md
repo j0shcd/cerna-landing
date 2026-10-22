@@ -65,6 +65,7 @@ browser service is used.
 npx astro build
 npx vitest run
 node --test src/scripts/waitlist.test.mjs
+node --test src/styles/theme-fallback.test.mjs # guards complete, matching light-colour fallbacks
 npx tsc --noEmit -p worker/tsconfig.json
 npm run test:e2e   # Playwright 1.60: builds, serves dist via e2e/serve.mjs on :4329, headless
 ```

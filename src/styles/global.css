@@ -27,6 +27,45 @@
   --shadow-card-dark: 0 0 0 1px #00000040; --shadow-field-dark: none;
   color-scheme: light dark;
 }
+/* Light colours for browsers without light-dark(); theme-fallback.test.mjs keeps this complete. */
+@supports not (color: light-dark(#000, #fff)) {
+  :root {
+    --paper: #fafaf7;
+    --sheet: #fff;
+    --ink: #17191c;
+    --graphite: #555a60;
+    --muted: #63686e;
+    --cell: #e4e5e0;
+    --cell-head: #f1f1ec;
+    --line: #cdcfc8;
+    --cobalt: #2f44a6;
+    --cobalt-hover: #26388c;
+    --on-cobalt: #fff;
+    --wash: #e9ecf8;
+    --done: #1f6b52;
+    --dup: #fbf6ec;
+    --error: #9a3412;
+    --attention: #8a5e00;
+    --attention-line: #d9c08a;
+    --cell-err: #a23f4c;
+    --mark: #fff0b8;
+    --dot-groceries: #7c8d68;
+    --dot-transport: #708aa0;
+    --dot-restaurants: #a07f62;
+    --dot-other: #8c857d;
+    --shadow-pop: 0 12px 28px -12px #17191c40;
+    --sage: #dfe8d6;
+    --slate: #dbe5ef;
+    --rose: #f1dcdc;
+    --ochre: #f3e5c1;
+    --violet: #e5e0f0;
+    --sage-ink: #3d5a2a;
+    --slate-ink: #2c4a66;
+    --rose-ink: #7a3436;
+    --ochre-ink: #6b4a00;
+    --violet-ink: #4a3f7a;
+  }
+}
 /* Dark follows the app's warm-ink theme (cerna-app DESIGN.md §2): never pure black, elevation from lightness, not shadow. */
 :root[data-theme='light'] { color-scheme: light; }
 :root[data-theme='dark'] {

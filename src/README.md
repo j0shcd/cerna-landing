@@ -96,3 +96,10 @@ keyboard and reduced-motion behavior, storage denial, both form locations,
 no-JS submission through the Worker, API failures and the browser network log.
 No browser, port binding, live signup, commit or deployment was performed by
 the frontend worker. Changes remain uncommitted for integration.
+
+`pages/unsubscribe.astro` uses the legal-page layout and shared button style,
+with all wording in `content/copy.ts` and a Base `noindex` prop. Its native form
+posts to `/api/unsubscribe`; a tiny script copies the URL token into the hidden
+field and switches confirm/done/invalid states. `e2e/unsubscribe.spec.ts` covers
+those states and the intercepted POST/303 flow; it still needs an orchestrator
+Playwright run. Backend behavior and deployment steps live in the root README.

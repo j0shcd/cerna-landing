@@ -1,0 +1,45 @@
+---
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { copy } from '../content/copy';
+const text = copy.unsubscribe;
+---
+<Base noindex>
+  <Header />
+  <main id="main" tabindex="-1" class="wrap unsubscribe">
+    <section data-state="confirm">
+      <h1>{text.title}</h1>
+      <p>{text.body}</p>
+      <form method="post" action="/api/unsubscribe">
+        <input type="hidden" name="token" value="" />
+        <button class="btn" type="submit">{text.button}</button>
+      </form>
+    </section>
+    <section data-state="done" hidden>
+      <h1>{text.doneTitle}</h1>
+      <p>{text.doneBody}</p>
+    </section>
+    <section data-state="invalid" hidden>
+      <h1>{text.invalidTitle}</h1>
+      <p>{text.invalidBody}</p>
+    </section>
+    <a class="back" href="/">{text.back}</a>
+  </main>
+  <Footer />
+</Base>
+<script>
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token') ?? '';
+  document.querySelector<HTMLInputElement>('[name="token"]')!.value = token;
+  const state = params.get('done') === '1' ? 'done' : params.get('error') === 'invalid_token' || !token ? 'invalid' : 'confirm';
+  document.querySelectorAll<HTMLElement>('[data-state]').forEach(element => { element.hidden = element.dataset.state !== state; });
+</script>
+<style>
+  .unsubscribe { max-width: 46rem; padding-block: 24px 96px; }
+  h1 { font: 600 clamp(2rem, 1.4rem + 2.4vw, 3rem) var(--display); letter-spacing: -.03em; line-height: 1.05; margin-bottom: 16px; }
+  p { font-size: 1.125rem; line-height: 1.6; color: var(--graphite); }
+  form { margin-top: 24px; }
+  .back { display: inline-flex; align-items: center; min-height: 44px; margin-top: 24px; font: 500 .95rem var(--display); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+  .back:hover { color: var(--cobalt); }
+</style>

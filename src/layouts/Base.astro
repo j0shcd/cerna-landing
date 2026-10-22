@@ -4,12 +4,14 @@ import displayFont from '@fontsource-variable/familjen-grotesk/files/familjen-gr
 import bodyFont from '@fontsource-variable/newsreader/files/newsreader-latin-standard-normal.woff2?url';
 import figureFont from '@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2?url';
 import { copy } from '../content/copy';
+const { noindex = false } = Astro.props;
 ---
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    {noindex && <meta name="robots" content="noindex" />}
     <meta name="description" content={copy.description} />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={copy.title} />

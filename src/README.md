@@ -56,8 +56,7 @@ The statement demo plays once on that first visit, when the card is half in view
 hide only sections below the viewport. There are no animation loops (the formula caret blinks six times and stops).
 
 Fonts use only the three installed Latin variable WOFF2 files, preloaded from
-this origin with optional display to avoid a late font swap. No external
-browser service is used.
+this origin with optional display to avoid a late font swap. All browser requests stay on this origin.
 
 ## Verification and next step
 
@@ -84,7 +83,7 @@ review decisions, and light/dark text contrast. It also covers modified clicks,
 focus after signup, and both native POSTs with JavaScript disabled. Network
 responses are intercepted; these checks do not submit real signups.
 
-The Node tests exercise the built form module with a small DOM adapter. They
+The Node tests compile the form source with a small DOM adapter and a stubbed analytics boundary. They
 cover the JSON contract, shared pending/success states, error retention, failed
 responses, redirect parameters and cancellation of both scroll completion callbacks.
 The cancellation checks were confirmed to fail with cleanup removed. These tests
@@ -103,3 +102,11 @@ posts to `/api/unsubscribe`; a tiny script copies the URL token into the hidden
 field and switches confirm/done/invalid states. `e2e/unsubscribe.spec.ts` covers
 those states and the intercepted POST/303 flow; it still needs an orchestrator
 Playwright run. Backend behavior and deployment steps live in the root README.
+
+Analytics live in `scripts/analytics.ts`, loaded by Base on every page: the public
+build-time `PUBLIC_POSTHOG_KEY` enables cookieless PostHog EU through `/ingest/*`.
+With no key it does nothing. The shared `track` helper sends only the form position
+after a successful signup, and `before_send` scrubs URLs and email properties. See
+[Analytics in the maintainer guide](../README.md#analytics) for configuration and
+owner project settings. The no-key browser regression is `e2e/analytics.spec.ts`;
+it still needs a Playwright run by the orchestrator.

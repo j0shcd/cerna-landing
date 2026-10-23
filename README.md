@@ -3,9 +3,9 @@
 ## What this is
 
 A static Astro launch page served by Cloudflare Static Assets, with a Worker API,
-D1 waitlist and a Brevo outbox for owner notifications and welcome emails. The Worker handles `/api/*`;
-static assets handle the site. No analytics, cookies or browser requests to third
-parties are part of this backend. The Worker calls Brevo server-side when enabled.
+D1 waitlist and a Brevo outbox for owner notifications and welcome emails. The Worker
+handles `/api/*` and `/ingest/*`; static assets handle the site. Optional PostHog EU
+analytics use the same origin. The Worker calls Brevo server-side when enabled.
 
 ## Local development
 
@@ -44,6 +44,45 @@ states and native POST/303 navigation but still requires a Playwright run.
 Minimal local declarations cover Node test APIs because the scaffold
 has no `@types/node`. Ports, browser behavior, remote D1 and actual Brevo delivery
 must be checked by the release owner.
+
+## Analytics
+
+Landing-page analytics use pinned `posthog-js` 1.438.2, imported from
+`posthog-js/dist/module.no-external` and bundled by Astro on our own origin.
+Set `PUBLIC_POSTHOG_KEY` in the production **build environment** before `astro build`;
+Astro embeds this public project key in browser code. It is not a Worker secret or
+runtime Wrangler var. See `.env.example`; leave it unset in local development and
+all tests. An unset or empty key skips initialization and all analytics requests.
+
+The Worker proxies `/ingest/*` to `eu.i.posthog.com` and `/ingest/static/*` to
+`eu-assets.i.posthog.com`, using hostnames. Only GET, POST and OPTIONS are accepted;
+bodies are capped at 64 KB and upstream calls at 10 seconds. Cookies, Authorization and the raw Referer
+are stripped; CF-Connecting-IP supplies X-Forwarded-For for country estimation.
+Responses are not cached and upstream cookies are not returned to the browser.
+
+The client uses cookieless mode, memory persistence, no person profiles, DNT respect,
+and text/attribute masking. Autocapture, replay, surveys, heatmaps, dead clicks,
+experiments, flags, exception capture and external dependency loading are disabled.
+Only pageview/pageleave and a confirmed `waitlist_joined` conversion (hero/closing)
+are captured. The outbound filter strips URL query/hash data except `utm_*`,
+redacts email addresses (including encoded ones) recursively and removes email,
+form-value and person-set properties. Form inputs are never passed to analytics.
+
+Owner project settings: choose **EU cloud**, enable **cookieless mode** and
+**Discard client IP data**, and disable **session replay**, **surveys** and
+**autocapture** at project level. Fill `{{POSTHOG_TRANSFER_BASIS}}` in
+`src/content/legal.ts` before deploying; the existing legal check blocks deployment.
+No account settings or production configuration have been changed here.
+
+Verification: `worker/analytics.test.ts` stubs the SDK and checks configuration,
+redaction and the off switch; backend tests stub upstream fetches.
+`e2e/analytics.spec.ts` records requests with the key unset and requires zero
+`/ingest` or external requests. Playwright remains for the orchestrator to run.
+The `phc_test` build contains `/ingest` and no `array.js` URL, but the bundled SDK
+retains its built-in `us.i.posthog.com` defaults and `us-assets` region matcher.
+The requested zero-US-literals bundle check therefore fails; these are vendor
+fallbacks, not our configured endpoint. Runtime browser verification is outstanding.
+The final local build has the key unset.
 
 ## One-time Cloudflare and Brevo setup
 
@@ -184,8 +223,8 @@ service logs according to account settings and their terms.
 Privacy notice and impressum are drafted in `src/content/legal.ts` (pages `/privacy` and `/impressum`, linked from the footer). They contain `{{PLACEHOLDERS}}` for facts only the operator can supply; `npm run check:legal` lists them and `npm run deploy` refuses to run until none remain. Bump `CONSENT_VERSION` in `wrangler.jsonc` and the notice date whenever the notice changes in a way that affects what visitors agreed to.
 
 Before launch the owner must publish the controller's identity and contact,
-waitlist, welcome-email and owner-notification purposes and legal basis, recipients Cloudflare
-and Brevo (including any transfers), concrete retention periods, and how to
+waitlist, welcome-email and owner-notification purposes and legal basis, recipients Cloudflare,
+Brevo and PostHog (including any transfers), concrete retention periods, and how to
 exercise access, correction, deletion, withdrawal and other applicable rights.
 The owner must choose those periods and handle requests, including any copies in
 owner email. The privacy notice and sender configuration are launch requirements.

@@ -39,6 +39,7 @@ export const privacy: LegalDoc = {
       heading: 'Who else handles your data',
       items: [
         'Cloudflare hosts this site and stores the waitlist in a database set to the EU jurisdiction. Cloudflare is a US company; {{CLOUDFLARE_TRANSFER_BASIS}}.',
+        'PostHog (a US company; data stored in its EU cloud in Frankfurt) counts visits to this site; {{POSTHOG_TRANSFER_BASIS}}.',
         'Brevo (a French company, servers in the EU) sends the welcome email to you and the notification email to us.',
         'Our own mailbox, hosted by Google, receives that notification and so holds each new address; {{GOOGLE_TRANSFER_BASIS}}.',
       ],
@@ -51,7 +52,7 @@ export const privacy: LegalDoc = {
     {
       heading: 'Cookies and tracking',
       paragraphs: [
-        'This site sets no cookies, runs no analytics and loads nothing from other companies, including fonts. Your browser keeps one small note in the tab, saying the opening animation has already played; it never leaves your browser and disappears when you close the tab.',
+        'This site sets no cookies and loads nothing from other companies, including fonts. To count visits we use PostHog in cookieless mode: when a page loads, our own server passes the page address, the referring site, your browser type and your IP address to PostHog, which uses them to count visits and estimate your country, and does not keep your IP address. No profile of you is built, and nothing you type is recorded. Your browser keeps one small note in the tab, saying the opening animation has already played; it never leaves your browser and disappears when you close the tab.',
       ],
     },
     {

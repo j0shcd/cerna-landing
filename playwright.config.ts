@@ -7,5 +7,5 @@ export default defineConfig({
   outputDir: 'node_modules/.playwright.nosync',
   reporter: 'list',
   use: { baseURL: 'http://localhost:4329', headless: true },
-  webServer: { command: 'npx astro build && node e2e/serve.mjs', url: 'http://localhost:4329', reuseExistingServer: false, timeout: 120_000 },
+  webServer: { command: 'env -u PUBLIC_POSTHOG_KEY npx astro build && node e2e/serve.mjs', url: 'http://localhost:4329', reuseExistingServer: false, timeout: 120_000 },
 });

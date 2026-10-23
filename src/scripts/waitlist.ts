@@ -1,4 +1,5 @@
 import { copy, type WaitlistError } from '../content/copy';
+import { track } from './analytics';
 
 const boxes = [...document.querySelectorAll<HTMLElement>('[data-waitlist]')];
 let pending = false;
@@ -48,6 +49,7 @@ boxes.forEach(box => {
       const result: { ok?: unknown; error?: unknown } = await response.json();
       if (response.status === 200 && result.ok === true) {
         success(email);
+        track('waitlist_joined', { form: box.id === 'join-closing' ? 'closing' : 'hero' });
         box.querySelector<HTMLElement>('.form-status')!.focus();
       } else showError(box, isError(result.error) ? result.error : 'save_failed');
     } catch { showError(box, 'save_failed'); }

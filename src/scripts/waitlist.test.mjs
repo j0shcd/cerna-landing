@@ -1,10 +1,18 @@
 // Exercise the shipped enhancement with a small DOM adapter; browser QA is separate.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
+import { stripTypeScriptTypes } from 'node:module';
 
-const bundle = (await readdir(new URL('../../dist/_astro/', import.meta.url))).find(name => name.startsWith('WaitlistForm.') && name.endsWith('.js'));
-assert.ok(bundle, 'Run npx astro build before this test');
+// Compile the real source with a stub at the analytics boundary: no SDK in this fake DOM.
+const source = await readFile(new URL('./waitlist.ts', import.meta.url), 'utf8');
+const copy = stripTypeScriptTypes(await readFile(new URL('../content/copy.ts', import.meta.url), 'utf8'));
+const dataModule = code => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
+const compiled = stripTypeScriptTypes(source);
+assert.ok(compiled.includes("from './analytics'"));
+assert.ok(compiled.includes("from '../content/copy'"));
+const script = compiled.replace("'../content/copy'", JSON.stringify(dataModule(copy)))
+  .replace("'./analytics'", JSON.stringify(dataModule('export const track = (...args) => globalThis.analyticsCalls.push(args);')));
 let run = 0;
 function element() {
   return {
@@ -24,6 +32,8 @@ function box() {
 }
 async function setup(search = '', browser = false) {
   const boxes = [box(), box()];
+  boxes[0].id = 'join'; boxes[1].id = 'join-closing';
+  globalThis.analyticsCalls = [];
   globalThis.document = { querySelectorAll: () => boxes };
   globalThis.location = { search };
   globalThis.window = { setTimeout };
@@ -50,7 +60,7 @@ async function setup(search = '', browser = false) {
       box.scrollIntoView = options => { box.scrollOptions = options; };
     }
   }
-  await import(new URL(`../../dist/_astro/${bundle}?run=${run++}`, import.meta.url));
+  await import(`${dataModule(script)}#run=${run++}`);
   return boxes;
 }
 const submit = box => box.form.listeners.submit({ preventDefault() {} });
@@ -76,6 +86,7 @@ test('JSON contract, pending lock and shared success', async () => {
   assert.equal(calls, 1);
   resolve({ status: 200, json: async () => ({ ok: true }) });
   await pending;
+  assert.deepEqual(analyticsCalls, [['waitlist_joined', { form: 'hero' }]]);
   for (const box of boxes) {
     assert.ok(box.classList.contains('is-done'));
     assert.equal(box.status.textContent, 'You’re on the list. We’ll write to person@example.com when Cerna opens.');
@@ -97,6 +108,7 @@ test('all API errors retain the address and reset pending state', async () => {
     assert.equal(boxes[0].status.textContent, text);
     assert.ok(!boxes[0].classList.contains('is-done'));
     assert.ok(boxes.every(box => !box.button.disabled));
+    assert.deepEqual(analyticsCalls, []);
   }
 });
 
@@ -115,6 +127,7 @@ test('invalid input, network errors and malformed responses cannot claim success
     assert.match(boxes[0].status.textContent, /not on the list yet/);
     assert.ok(!boxes[0].classList.contains('is-done'));
     assert.equal(boxes[0].email.value, 'person@example.com');
+    assert.deepEqual(analyticsCalls, []);
   }
 });
 
@@ -150,3 +163,11 @@ for (const trigger of ['scrollend', 'timeout']) {
     } finally { restore(); }
   });
 }
+
+test('closing form tracks one conversion without its email', async () => {
+  const boxes = await setup();
+  boxes[1].email.value = 'private@example.com';
+  globalThis.fetch = async () => ({ status: 200, json: async () => ({ ok: true }) });
+  await submit(boxes[1]);
+  assert.deepEqual(analyticsCalls, [['waitlist_joined', { form: 'closing' }]]);
+});

@@ -6,3 +6,6 @@ EMAIL_ENABLED=false
 ADMIN_NOTIFY_TO=you@example.com
 UNSUBSCRIBE_HMAC_KEY=replace-with-a-random-high-entropy-local-secret
 CONSENT_VERSION=2026-10-22
+
+# PUBLIC_POSTHOG_KEY is an Astro build-time variable, not a Worker secret.
+# See .env.example; leave it unset in local development and tests.

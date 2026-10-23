@@ -1,9 +1,11 @@
 import type { Env } from './env';
+import { ingest } from './ingest';
 import { waitlist, unsubscribe } from './handler';
 import { processOutbox } from './outbox';
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const path = new URL(request.url).pathname;
+    if (path.startsWith('/ingest/')) return ingest(request);
     const allowed = path === '/api/health' ? 'GET' : path === '/api/waitlist' ? 'POST' : path === '/api/unsubscribe' ? 'GET, POST' : null;
     if (!allowed) return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
     if (!allowed.split(', ').includes(request.method)) return Response.json({ ok: false, error: 'method_not_allowed' }, { status: 405, headers: { Allow: allowed } });

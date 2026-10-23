@@ -358,3 +358,54 @@ describe('welcome and unsubscribe', () => {
     expect(rows('waitlist_signups')).toHaveLength(1);
   });
 });
+
+describe('analytics proxy', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+  const proxy = (path = '/ingest/e/?v=1', init: RequestInit = {}) => worker.fetch(new Request(`https://cerna.example${path}`, init), env, ctx);
+  it('forwards EU path, query, body and browser headers without credentials or cached responses', async () => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(new Response('accepted', { status: 202, headers: { 'Content-Type': 'application/json', 'Set-Cookie': 'bad=1' } }));
+    vi.stubGlobal('fetch', send);
+    const response = await proxy('/ingest/e/?v=1&x=two', { method: 'POST', body: '{"event":"$pageview"}', headers: {
+      Referer: 'https://cerna.example/?email=private@example.com', Cookie: 'secret=1', Authorization: 'Bearer secret', 'CF-Connecting-IP': '203.0.113.42', 'X-Forwarded-For': 'spoofed', 'User-Agent': 'test-browser', 'Content-Type': 'application/json',
+    } });
+    const [url, options] = send.mock.calls[0]!;
+    expect(url).toBe('https://eu.i.posthog.com/e/?v=1&x=two');
+    expect(options!.method).toBe('POST'); expect(new TextDecoder().decode(options!.body as Uint8Array)).toBe('{"event":"$pageview"}');
+    const headers = new Headers(options!.headers);
+    expect(headers.has('Referer')).toBe(false); expect(headers.has('Cookie')).toBe(false); expect(headers.has('Authorization')).toBe(false);
+    expect(headers.get('X-Forwarded-For')).toBe('203.0.113.42'); expect(headers.get('User-Agent')).toBe('test-browser');
+    expect(options!.cache).toBe('no-store'); expect(options!.redirect).toBe('error');
+    expect(response.status).toBe(202); expect(await response.text()).toBe('accepted');
+    expect(response.headers.get('Content-Type')).toBe('application/json'); expect(response.headers.get('Cache-Control')).toBe('no-store'); expect(response.headers.has('Set-Cookie')).toBe(false);
+  });
+  it.each(['GET', 'OPTIONS'])('forwards %s and static paths to the EU asset hostname', async method => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 })); vi.stubGlobal('fetch', send);
+    expect((await proxy('/ingest/static/file.js?v=2', { method, headers: { 'X-Forwarded-For': 'spoofed' } })).status).toBe(204);
+    expect(send.mock.calls[0]![0]).toBe('https://eu-assets.i.posthog.com/static/file.js?v=2');
+    expect(send.mock.calls[0]![1]!.method).toBe(method);
+    expect(new Headers(send.mock.calls[0]![1]!.headers).has('X-Forwarded-For')).toBe(false);
+  });
+  it.each(['PUT', 'PATCH', 'DELETE', 'HEAD'])('rejects %s without contacting upstream', async method => {
+    const send = vi.fn(); vi.stubGlobal('fetch', send);
+    const response = await proxy(undefined, { method });
+    expect(response.status).toBe(405); expect(response.headers.get('Allow')).toBe('GET, POST, OPTIONS'); expect(send).not.toHaveBeenCalled();
+  });
+  it('caps actual bytes as well as Content-Length at 64 KB', async () => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(new Response('ok')); vi.stubGlobal('fetch', send);
+    expect((await proxy(undefined, { method: 'POST', body: 'x'.repeat(65537) })).status).toBe(413);
+    expect((await proxy(undefined, { method: 'POST', headers: { 'Content-Length': '65537' }, body: 'x' })).status).toBe(413);
+    expect(send).not.toHaveBeenCalled();
+    expect((await proxy(undefined, { method: 'POST', body: 'x'.repeat(65536) })).status).toBe(200);
+  });
+  it('returns 502 on failure and on the 10-second upstream timeout', async () => {
+    const send = vi.fn<typeof fetch>().mockRejectedValue(new Error('upstream failed')); vi.stubGlobal('fetch', send);
+    expect((await proxy()).status).toBe(502);
+    vi.useFakeTimers();
+    send.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
+      options!.signal!.addEventListener('abort', () => reject(new Error('aborted')));
+    }));
+    const pending = proxy();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect((await pending).status).toBe(502);
+  });
+});

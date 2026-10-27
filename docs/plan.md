@@ -37,6 +37,11 @@ Facts the owner still has to supply: launch date, price, countries beyond Switze
 
 ## Status: built, not deployed
 
+Dependency security was audited on 27 October 2026. Patched dependencies and the
+monitoring configuration are local commits; the daily local security heartbeat
+is active, and cloud checks still need publication to GitHub. Findings,
+verification and activation steps live in [SECURITY.md](SECURITY.md).
+
 Repository `cerna-landing` (moved from `~/Developer/cerna-site`; its own git history). Backend (Worker, D1 schema, outbox, Brevo adapter, 58 tests) and the D5-based page are implemented and were verified locally: unit tests, type check, build, a live local Worker run (valid, duplicate, invalid, honeypot, rate limit, origin, form post), and a real-browser pass at 1440, 1024, 768 and 390 (no overflow, no console errors, no third-party requests; form success and error states; the three demos; JS off; reduced motion). An independent read-only review found three P2s; two were fixed with tests (stricter email validation, retention cleanup independent of email delivery) and one was accepted (an owner notification can be delivered twice if a crash lands between Brevo accepting and D1 recording it; the same delivery limitation also applies to welcome mail).
 
 Not done, needs the owner: a domain, a Cloudflare account (`wrangler d1 create cerna-waitlist --jurisdiction=eu`, put the id in `wrangler.jsonc`), a Brevo account with a verified sender domain and DKIM/DMARC, secrets and `EMAIL_ENABLED=true`, then `npm run db:migrate:remote` and `npm run deploy` (all steps in the site README). A live Brevo delivery to the owner's inbox has not been tested.

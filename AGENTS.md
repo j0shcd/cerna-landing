@@ -4,6 +4,13 @@ This repo is `Cerna/cerna-landing`, a sibling of `Cerna/cerna-app` (the product)
 
 ## Development
 
+`package-lock.json` is authoritative; use npm only. This checkout now lives
+under Documents. Install/update dependencies in a temporary directory outside
+iCloud, then move the completed `node_modules` tree into place. Keep the existing
+`.nosync` Vite/Playwright caches. Mixing package managers previously left stale
+vulnerable pnpm stores and conflict copies even after `npm audit` was clean.
+See `docs/SECURITY.md` for dependency verification.
+
 When starting the dev server, use background mode:
 
 ```

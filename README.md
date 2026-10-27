@@ -1,5 +1,8 @@
 # Cerna site
 
+Dependency audit, remaining risks and automated monitoring:
+[`docs/SECURITY.md`](docs/SECURITY.md).
+
 ## What this is
 
 A static Astro launch page served by Cloudflare Static Assets, with a Worker API,

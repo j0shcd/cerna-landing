@@ -41,10 +41,13 @@ Dependency security was audited on 27 October 2026. Patched dependencies remain
 local commits. Dependabot is published, its switches are owner-confirmed, and
 updater jobs/PRs exist. The daily npm cloud audit is published and its first run
 correctly flags the still-unpatched remote lock. The daily local heartbeat adds
-OSV and installed-tree checks. Broader patch publication requires owner approval
-after automatic review rejected a private-source/design upload. Preserve the
-nine unrelated local commits. Findings, verification and next steps live in
+OSV and installed-tree checks. The owner approved security-only review PRs after
+an initial automatic-review upload rejection; merging and deployment remain off.
+Preserve the nine unrelated local commits. Findings, verification and next steps live in
 [SECURITY.md](SECURITY.md).
+Security-only [PR #3](https://github.com/j0shcd/cerna-landing/pull/3) is open and
+its cloud scan passes; the isolated snapshot passes 58 unit and 16 browser tests.
+It remains unmerged and excludes the nine unrelated feature commits.
 
 Repository `cerna-landing` (moved from `~/Developer/cerna-site`; its own git history). Backend (Worker, D1 schema, outbox, Brevo adapter, 58 tests) and the D5-based page are implemented and were verified locally: unit tests, type check, build, a live local Worker run (valid, duplicate, invalid, honeypot, rate limit, origin, form post), and a real-browser pass at 1440, 1024, 768 and 390 (no overflow, no console errors, no third-party requests; form success and error states; the three demos; JS off; reduced motion). An independent read-only review found three P2s; two were fixed with tests (stricter email validation, retention cleanup independent of email delivery) and one was accepted (an owner notification can be delivered twice if a crash lands between Brevo accepting and D1 recording it; the same delivery limitation also applies to welcome mail).
 

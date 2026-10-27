@@ -80,6 +80,14 @@ analytics/welcome/unsubscribe commits and also restores the broader OSV cloud
 scan; that scan becomes active on main only after merge. Verify the PR's own
 cloud result separately from local scans and the default branch.
 
+[Security review PR #3](https://github.com/j0shcd/cerna-landing/pull/3) is open,
+unmerged. Its isolated remote-main snapshot excludes the nine local feature
+commits and passes Worker typecheck, 58 unit tests, build and all 16 browser
+tests. OSV covers 394 resolved versions with zero findings; the nine scanner
+tests pass. The [PR cloud scan](https://github.com/j0shcd/cerna-landing/actions/runs/40536248619)
+also passed and retained its report. This proves the proposed scanner runs;
+the default branch still uses its older npm-only workflow and vulnerable lock.
+
 Failed-workflow notification delivery and available Actions minutes were not
 checked; no new subscription was created. The existing all-project 09:00 daily
 local Codex security heartbeat covers both Cerna repos, retaining its previous
@@ -108,7 +116,8 @@ reachability evidence; none are currently configured here.
 
 ## Verification status
 
-Verified after the clean install: Worker typecheck, 83 unit tests, the static
+In the owner's broader local feature checkout, verified after the clean
+install: Worker typecheck, 83 unit tests, the static
 build and all 22 headless browser tests pass. The nine stdlib scanner tests pass;
 mutation checks demonstrate that stale-store, missing-lock, manifest-drift and
 incomplete-response failures cannot silently pass. The OSV scan covers all 406

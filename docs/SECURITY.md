@@ -59,10 +59,13 @@ by the routine cooldown. Native Dependabot plus direct OSV queries was selected
 over adding Renovate, Socket or Snyk accounts. Known-malware records help with
 published compromises; they do not detect every unpublished malicious package.
 
-Activation requires pushing these files to the default branch, checking the
-first workflow result, and enabling dependency graph, Dependabot alerts/security
-updates and failed-workflow notifications in GitHub settings. Remote settings
-and available Actions minutes were not verified. Private jobs use the account's
+The Dependabot configuration was published separately to the default branch
+(commit `74f8368`) without publishing the owner's nine other pending commits.
+The connector cannot change alert/security-update settings and the in-app
+browser was signed out, so those settings await authenticated GitHub UI access.
+The daily cloud scanner still requires publishing its files, checking the first
+workflow result, and configuring failed-workflow notifications. Available
+Actions minutes were not checked. Private jobs use the account's
 included/paid Actions allowance; no new subscription was created. The existing
 all-project 09:00 daily local Codex security heartbeat was updated to cover both
 Cerna repositories explicitly, preserving its previous tasks and creating no

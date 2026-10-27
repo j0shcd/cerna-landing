@@ -44,14 +44,16 @@ matching is not proof that a development machine was never compromised.
 
 ## Monitoring
 
-`.github/workflows/security.yml` runs a complete OSV scan daily at 06:17 UTC,
-on main pushes, manually and on dependency/policy PRs. It queries exact locked
-versions including optional and development dependencies. It installs no app
-packages or lifecycle scripts and has `contents: read`, no deployment
-credentials and immutable action references. It fails on vulnerabilities,
-network errors, missing locks, manifest/lock drift or incomplete OSV responses,
-and retains its report for 14 days. Runtime policy checks the declared Node pin;
-the local actual runtime was verified separately.
+The published `.github/workflows/security.yml` runs `npm audit
+--package-lock-only` daily at 06:17 UTC, on main pushes, manually and on
+dependency/workflow PRs. It checks the remote npm lock, including development
+dependencies. It installs no app packages or lifecycle scripts and has
+`contents: read`, no deployment credentials and immutable action references.
+Audit findings and command/network errors fail the job; reports remain for
+14 days. This cloud check does not compare the installed tree or enforce the
+local runtime policy. The broader local OSV scanner checks exact locked versions,
+manifest drift, incomplete responses and policy; the local heartbeat runs it
+with `--installed-npm`. Publishing that broader scanner remains a follow-up.
 
 Dependabot is configured for weekly npm and GitHub Actions PRs, with a seven-day
 cooldown for routine npm upgrades and no auto merge. Security PRs are not delayed
@@ -59,19 +61,28 @@ by the routine cooldown. Native Dependabot plus direct OSV queries was selected
 over adding Renovate, Socket or Snyk accounts. Known-malware records help with
 published compromises; they do not detect every unpublished malicious package.
 
-The Dependabot configuration was published separately to the default branch
-(commit `74f8368`) without publishing the owner's nine other pending commits.
-The connector cannot change alert/security-update settings and the in-app
-browser was signed out, so those settings await authenticated GitHub UI access.
-The daily cloud scanner still requires publishing its files, checking the first
-workflow result, and configuring failed-workflow notifications. Available
-Actions minutes were not checked. Private jobs use the account's
-included/paid Actions allowance; no new subscription was created. The existing
-all-project 09:00 daily local Codex security heartbeat was updated to cover both
-Cerna repositories explicitly, preserving its previous tasks and creating no
-duplicate. It stays quiet on unchanged findings. Local tasks need the computer
-on and the app running. Cloud monitoring is not active merely because these
-files exist locally.
+The Dependabot configuration was published separately as `74f8368`. The owner
+confirmed dependency graph, alerts and security updates enabled on 27 October;
+the connector cannot independently read these administration settings. Actual
+updater jobs and [Dependabot PRs](https://github.com/j0shcd/cerna-landing/pulls)
+exist. Alert delivery has not been tested.
+
+The npm-only cloud workflow was published separately as `ba08308`, without the
+owner's nine unrelated pending commits. Its [first run](https://github.com/j0shcd/cerna-landing/actions/runs/40534703514)
+completed on 27 October: checkout, Node setup and report upload succeeded; the
+audit correctly failed with three vulnerable entries (one high, two moderate)
+in the remote unpatched Wrangler/Miniflare/Undici chain. Local patched locks are
+clean but unpublished. A broader Cerna private-source/design upload was rejected
+by automatic approval review. Obtain owner approval for a reviewed security-only
+publication; exclude unrelated analytics/welcome/unsubscribe changes from this
+public repository. Do not retry the rejected bundle through another transport.
+After publication, verify the cloud result; do not equate local scans with it.
+
+Failed-workflow notification delivery and available Actions minutes were not
+checked; no new subscription was created. The existing all-project 09:00 daily
+local Codex security heartbeat covers both Cerna repos, retaining its previous
+tasks without a duplicate. It stays quiet on unchanged findings. Local tasks
+need the computer on and the app running; npm cloud audits run independently.
 [Scheduled-task behavior](https://learn.chatgpt.com/docs/automations?surface=app).
 
 ```sh

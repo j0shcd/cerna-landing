@@ -183,10 +183,24 @@ def api(path, body=None, method=None):
         return json.load(response)
 
 
-def content(repo, path, sha):
+def file_text(repo, path, sha):
     item = api(f'repos/{repo}/contents/{path}?ref={sha}')
     require(item.get('encoding') == 'base64', 'unsupported file encoding')
-    return json.loads(base64.b64decode(item['content']).decode('utf-8'))
+    return base64.b64decode(item['content']).decode('utf-8')
+
+
+def content(repo, path, sha):
+    return json.loads(file_text(repo, path, sha))
+
+
+
+def require_full_app_audit(repo, sha):
+    if repo != 'j0shcd/cerna-app':
+        return
+    workflow = file_text(repo, '.github/workflows/security.yml', sha)
+    require(re.search(r'^\s+run: python -S scripts/security_audit\.py(?:\s|$)', workflow, re.MULTILINE), 'full Python/native cloud audit is not published')
+    inventory = content(repo, 'security/python-inventory.json', sha)
+    require(inventory.get('distributions') and inventory.get('conda_packages') and inventory.get('environment_sha256'), 'Python/native audit inventory is missing')
 
 
 def main():
@@ -222,6 +236,7 @@ def main():
     prefix = REPOSITORIES[repo]
     manifests = [content(repo, prefix + filename, sha) for filename in ('package.json', 'package-lock.json') for sha in (pr['base']['sha'], expected)]
     eligible(repo, pr, metadata, files, protection, manifests[0], manifests[1], manifests[2], manifests[3])
+    require_full_app_audit(repo, expected)
     verify_publishers(manifests[2], manifests[3])
     if not args.merge:
         print('Eligible security patch; check-only mode, no merge attempted')

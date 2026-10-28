@@ -172,8 +172,10 @@ is available. Do not buy a plan or widen app/token permissions incidentally.
 The native rule requires functional validation only. The controller separately
 requires the absolute security audit to pass before ANY automatic merge. This
 keeps known vulnerabilities blocking bots without locking out manually reviewed
-repairs when upstream fixes are unavailable. In particular, the app's native
-findings keep its bot auto-merges blocked.
+repairs when upstream fixes are unavailable. The app additionally requires the
+full OSV/Python/native workflow and its resolved inventory at the exact PR head;
+a green npm-only job cannot authorize an app merge. Until the broader security
+PR is merged and its native findings clear, app bot merges remain blocked.
 
 Active strict rules and check-source IDs are read from the metadata-accessible
 REST branch-rules API. Every effective ruleset must report this token's
@@ -191,7 +193,7 @@ a self-check wait that could never become `clean`, a Chrome reinstall conflict,
 and a rule that would lock main on existing vulnerabilities. New helper actions
 were rejected after exact runtime-lock scans found known advisories, including
 Undici in fetch-metadata v3.1.0 and setup-micromamba v3.2.1. Neither is used.
-Fifteen policy tests cover the controller and parser with adversarial cases;
+Seventeen policy tests cover the controller and parser with adversarial cases;
 disabling strict-rule enforcement makes a regression fail. Registry probes
 exercise real version metadata without installing packages. The latest complete
 local app browser run is 196 passed / one pre-existing sentinel-crawl failure;

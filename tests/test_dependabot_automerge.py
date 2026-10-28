@@ -87,7 +87,7 @@ class PolicyTests(unittest.TestCase):
             policy.eligible(*args)
 
 class MergeLifecycleTests(unittest.TestCase):
-    def exercise(self, *, move=False, fail=False, spoof=False, missing=False, check_only=False, unverified=False, workflow_run=False, wrong_committer=False, wrong_check_head=False, pending=False, behind=False, native_validation_only=False, bypass=False, bypass_after=False, new_main=False):
+    def exercise(self, *, move=False, fail=False, spoof=False, missing=False, check_only=False, unverified=False, workflow_run=False, wrong_committer=False, wrong_check_head=False, pending=False, behind=False, native_validation_only=False, bypass=False, bypass_after=False, new_main=False, missing_native=False):
         import contextlib
         import io
         import json
@@ -141,7 +141,7 @@ class MergeLifecycleTests(unittest.TestCase):
             raise AssertionError(path)
         with tempfile.TemporaryDirectory() as tmp:
             event = Path(tmp) / 'event.json'; event.write_text(json.dumps({'workflow_run': {'event': 'pull_request', 'conclusion': 'success', 'head_repository': {'full_name': repo}, 'head_sha': sha, 'pull_requests': [{'number': 7}]}} if workflow_run else {'pull_request': pr}))
-            with mock.patch.dict(os.environ, {'GITHUB_REPOSITORY': repo, 'GITHUB_EVENT_PATH': str(event), 'IGNORED_TEST_VALUE': 'unused'}), mock.patch('sys.argv', ['policy'] + ([] if check_only else ['--merge'])), mock.patch.object(policy, 'api', side_effect=api), mock.patch.object(policy, 'content', side_effect=[old, new, lock, updated]), mock.patch.object(policy, 'publisher', return_value=('stable-publisher', 'null')), mock.patch.object(policy.time, 'monotonic', side_effect=[0, 0, 1501]), mock.patch.object(policy.time, 'sleep'), contextlib.redirect_stdout(io.StringIO()):
+            with mock.patch.dict(os.environ, {'GITHUB_REPOSITORY': repo, 'GITHUB_EVENT_PATH': str(event), 'IGNORED_TEST_VALUE': 'unused'}), mock.patch('sys.argv', ['policy'] + ([] if check_only else ['--merge'])), mock.patch.object(policy, 'api', side_effect=api), mock.patch.object(policy, 'content', side_effect=[old, new, lock, updated]), mock.patch.object(policy, 'publisher', return_value=('stable-publisher', 'null')), mock.patch.object(policy, 'require_full_app_audit', side_effect=policy.Ineligible('missing native coverage') if missing_native else None), mock.patch.object(policy.time, 'monotonic', side_effect=[0, 0, 1501]), mock.patch.object(policy.time, 'sleep'), contextlib.redirect_stdout(io.StringIO()):
                 try:
                     policy.main()
                 except Exception:
@@ -165,7 +165,7 @@ class MergeLifecycleTests(unittest.TestCase):
         self.assertEqual(self.exercise(check_only=True), [])
 
     def test_changed_head_failed_checks_missing_checks_and_spoofed_checks_never_merge(self):
-        for options in [{'move': True}, {'fail': True}, {'spoof': True}, {'missing': True}, {'unverified': True}, {'wrong_committer': True}, {'wrong_check_head': True}, {'pending': True}, {'behind': True}, {'bypass': True}, {'bypass_after': True}, {'new_main': True}]:
+        for options in [{'move': True}, {'fail': True}, {'spoof': True}, {'missing': True}, {'unverified': True}, {'wrong_committer': True}, {'wrong_check_head': True}, {'pending': True}, {'behind': True}, {'bypass': True}, {'bypass_after': True}, {'new_main': True}, {'missing_native': True}]:
             with self.subTest(options=options), self.assertRaises(policy.Ineligible):
                 self.exercise(**options)
 
@@ -225,6 +225,22 @@ class PublisherTests(unittest.TestCase):
     def test_redirects_are_rejected(self):
         with self.assertRaises(policy.Ineligible):
             policy.NoRedirect().redirect_request(None, None, 302, '', {}, 'https://elsewhere.test')
+
+
+class NativeCoverageTests(unittest.TestCase):
+    def test_npm_only_workflow_cannot_authorize_app_merge(self):
+        from unittest import mock
+        with mock.patch.object(policy, 'file_text', return_value='        run: npm audit\n'), self.assertRaises(policy.Ineligible):
+            policy.require_full_app_audit('j0shcd/cerna-app', 'a' * 40)
+
+    def test_full_workflow_needs_native_inventory(self):
+        from unittest import mock
+        workflow = '        run: python -S scripts/security_audit.py | tee security-report.json\n'
+        with mock.patch.object(policy, 'file_text', return_value=workflow), mock.patch.object(policy, 'content', return_value={}), self.assertRaises(policy.Ineligible):
+            policy.require_full_app_audit('j0shcd/cerna-app', 'a' * 40)
+        with mock.patch.object(policy, 'file_text', return_value=workflow), mock.patch.object(policy, 'content', return_value={'distributions': [{}], 'conda_packages': [{}], 'environment_sha256': 'a' * 64}):
+            policy.require_full_app_audit('j0shcd/cerna-app', 'a' * 40)
+
 
 
 if __name__ == '__main__':

@@ -118,7 +118,8 @@ reachability evidence; none are currently configured here.
 
 The approved guard setup is published on main as `681c728`. The existing security
 PR workflows now use the same required check name. Neither dependency-fix PR
-has been merged. Main remains unprotected, so automatic merging is inactive.
+has been merged. Main was unprotected at the last verified read; the owner
+is now creating rulesets. Automatic merge activation remains unverified.
 
 The [first validation run](https://github.com/j0shcd/cerna-landing/actions/runs/40652033484)
 exposed a CI bootstrap problem. Validation now pins Ubuntu 24.04, supported by
@@ -132,16 +133,24 @@ artifacts successfully. Reintroducing the invalid runner expression in a
 temporary fixture makes actionlint fail; both repaired repositories lint clean.
 This is a regression check, not a claim that cloud browser tests have passed.
 
-The repairs are committed locally pending the required follow-up push approval.
-The open security PRs also need main merged into their review branches to resolve
-runbook add/add conflicts. The prepared sync preserves every existing product
-and dependency blob and takes current main's runbooks/guard setup; it does not
-merge either PR into main or include unrelated local commits.
+The owner approved publication. The runner repair is on main as `ebb7689`;
+PR #3 includes source-preserving sync `54c8da2`, which resolved the runbook
+conflict while preserving its seven existing source/dependency/scanner blobs.
+PR #3 remains unmerged.
 
-Next: publish the named CI-repair commits and review-branch syncs, verify actual
-cloud validation, then import the ruleset. Do not import the required-check
-ruleset while validation is failing. Configuration and local lint are not live
-CI proof.
+The repaired [main validation](https://github.com/j0shcd/cerna-landing/actions/runs/40655272575)
+and [PR validation](https://github.com/j0shcd/cerna-landing/actions/runs/40655359423)
+both pass, including browser tests. The [fresh full PR audit](https://github.com/j0shcd/cerna-landing/actions/runs/40655359354)
+passes with 394 resolved versions and zero findings. Main's older npm-only
+audit still reports its unpatched lock until the held security PR is merged.
+
+Next: verify the owner-created main ruleset, requiring only `Dependency
+validation` from GitHub Actions with strict/up-to-date branches, a PR with zero
+approvals and no bypass actors, then observe a qualifying Dependabot PR.
+`Dependency security audit` remains mandatory in the bot guard and stays outside
+native required checks. Landing validation is ready for ruleset activation;
+the app's validation is still blocked and must be handled separately. A passing
+validation job is not proof of ruleset activation or an actual automatic merge.
 
 ## Guarded security-patch merges (requested; not active)
 
@@ -234,9 +243,8 @@ components: application-lock scans do not establish their bundled dependencies
 are clean. The privileged merge path uses none of them; continue upstream
 bundled-dependency checks in the security monitor.
 
-Next: approve the named guard commits for publication, keep required check names
-consistent in the existing security PRs, verify the published CI, import the
-ruleset, then verify a qualifying Dependabot PR end to end. The daily monitor
+Next: verify the owner-created ruleset and a qualifying Dependabot PR end to
+end. The daily monitor
 owns follow-up and reports meaningful activation/CI failures without repeating
 unchanged findings. Behind-main branches need a Dependabot rebase before retry;
 never force-push or bypass checks to obtain an automatic merge.

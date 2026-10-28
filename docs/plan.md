@@ -49,11 +49,15 @@ Security-only [PR #3](https://github.com/j0shcd/cerna-landing/pull/3) is open an
 its cloud scan passes; the isolated snapshot passes 58 unit and 16 browser tests.
 It remains unmerged and excludes the nine unrelated feature commits.
 Guarded Dependabot security-patch merging was requested subsequently. Its
-implementation remains local, pending push approval and strict branch protection;
+implementation is published, pending verified strict branch protection;
 [SECURITY.md](SECURITY.md) records the policy and remaining activation steps.
 The guard setup is now published as `681c728`. Initial cloud validation passed
-units/types/build but Playwright rejected Ubuntu 26.04; the Ubuntu 24.04 repair
-and review-branch sync are prepared locally. Verify cloud CI before ruleset import.
+units/types/build but Playwright rejected Ubuntu 26.04. The Ubuntu 24.04 repair
+is published as `ebb7689`, and PR #3's source-preserving sync is `54c8da2`.
+Main and PR validation now pass, and the refreshed PR audit reports 394 versions
+with zero findings. The owner is creating the main ruleset; require `Dependency
+validation` from GitHub Actions, up-to-date branches, PRs with zero approvals and
+no bypass actors. Verify the effective rules and first qualifying bot merge.
 
 Repository `cerna-landing` (moved from `~/Developer/cerna-site`; its own git history). Backend (Worker, D1 schema, outbox, Brevo adapter, 58 tests) and the D5-based page are implemented and were verified locally: unit tests, type check, build, a live local Worker run (valid, duplicate, invalid, honeypot, rate limit, origin, form post), and a real-browser pass at 1440, 1024, 768 and 390 (no overflow, no console errors, no third-party requests; form success and error states; the three demos; JS off; reduced motion). An independent read-only review found three P2s; two were fixed with tests (stricter email validation, retention cleanup independent of email delivery) and one was accepted (an owner notification can be delivered twice if a crash lands between Brevo accepting and D1 recording it; the same delivery limitation also applies to welcome mail).
 

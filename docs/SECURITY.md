@@ -114,6 +114,35 @@ script should be reviewed explicitly before allowing it. Security fixes still
 require tests and reviewed PRs. Record new exceptions with an expiry and concrete
 reachability evidence; none are currently configured here.
 
+## Cloud rollout, 28 October 2026
+
+The approved guard setup is published on main as `681c728`. The existing security
+PR workflows now use the same required check name. Neither dependency-fix PR
+has been merged. Main remains unprotected, so automatic merging is inactive.
+
+The [first validation run](https://github.com/j0shcd/cerna-landing/actions/runs/40652033484)
+exposed a CI bootstrap problem. Validation now pins Ubuntu 24.04, supported by
+the locked Playwright version; Ubuntu 26.04 was rejected by Playwright 1.60.0.
+The first run passed the guard policy, dependency install, typecheck, unit
+tests and build, then stopped at browser dependency installation. All 17 guard
+policy tests and workflow-aware actionlint pass after the runner pin.
+
+A no-install Playwright platform probe resolves Ubuntu 24.04's Linux browser
+artifacts successfully. Reintroducing the invalid runner expression in a
+temporary fixture makes actionlint fail; both repaired repositories lint clean.
+This is a regression check, not a claim that cloud browser tests have passed.
+
+The repairs are committed locally pending the required follow-up push approval.
+The open security PRs also need main merged into their review branches to resolve
+runbook add/add conflicts. The prepared sync preserves every existing product
+and dependency blob and takes current main's runbooks/guard setup; it does not
+merge either PR into main or include unrelated local commits.
+
+Next: publish the named CI-repair commits and review-branch syncs, verify actual
+cloud validation, then import the ruleset. Do not import the required-check
+ruleset while validation is failing. Configuration and local lint are not live
+CI proof.
+
 ## Guarded security-patch merges (requested; not active)
 
 The owner authorized guarded Dependabot security-patch merging on 27 October.

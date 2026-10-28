@@ -51,6 +51,9 @@ It remains unmerged and excludes the nine unrelated feature commits.
 Guarded Dependabot security-patch merging was requested subsequently. Its
 implementation remains local, pending push approval and strict branch protection;
 [SECURITY.md](SECURITY.md) records the policy and remaining activation steps.
+The guard setup is now published as `681c728`. Initial cloud validation passed
+units/types/build but Playwright rejected Ubuntu 26.04; the Ubuntu 24.04 repair
+and review-branch sync are prepared locally. Verify cloud CI before ruleset import.
 
 Repository `cerna-landing` (moved from `~/Developer/cerna-site`; its own git history). Backend (Worker, D1 schema, outbox, Brevo adapter, 58 tests) and the D5-based page are implemented and were verified locally: unit tests, type check, build, a live local Worker run (valid, duplicate, invalid, honeypot, rate limit, origin, form post), and a real-browser pass at 1440, 1024, 768 and 390 (no overflow, no console errors, no third-party requests; form success and error states; the three demos; JS off; reduced motion). An independent read-only review found three P2s; two were fixed with tests (stricter email validation, retention cleanup independent of email delivery) and one was accepted (an owner notification can be delivered twice if a crash lands between Brevo accepting and D1 recording it; the same delivery limitation also applies to welcome mail).
 

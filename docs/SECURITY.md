@@ -114,6 +114,133 @@ script should be reviewed explicitly before allowing it. Security fixes still
 require tests and reviewed PRs. Record new exceptions with an expiry and concrete
 reachability evidence; none are currently configured here.
 
+## Cloud rollout, 28 October 2026
+
+The approved guard setup is published on main as `681c728`. The existing security
+PR workflows now use the same required check name. Neither dependency-fix PR
+has been merged. Main remains unprotected, so automatic merging is inactive.
+
+The [first validation run](https://github.com/j0shcd/cerna-landing/actions/runs/40652033484)
+exposed a CI bootstrap problem. Validation now pins Ubuntu 24.04, supported by
+the locked Playwright version; Ubuntu 26.04 was rejected by Playwright 1.60.0.
+The first run passed the guard policy, dependency install, typecheck, unit
+tests and build, then stopped at browser dependency installation. All 17 guard
+policy tests and workflow-aware actionlint pass after the runner pin.
+
+A no-install Playwright platform probe resolves Ubuntu 24.04's Linux browser
+artifacts successfully. Reintroducing the invalid runner expression in a
+temporary fixture makes actionlint fail; both repaired repositories lint clean.
+This is a regression check, not a claim that cloud browser tests have passed.
+
+The repairs are committed locally pending the required follow-up push approval.
+The open security PRs also need main merged into their review branches to resolve
+runbook add/add conflicts. The prepared sync preserves every existing product
+and dependency blob and takes current main's runbooks/guard setup; it does not
+merge either PR into main or include unrelated local commits.
+
+Next: publish the named CI-repair commits and review-branch syncs, verify actual
+cloud validation, then import the ruleset. Do not import the required-check
+ruleset while validation is failing. Configuration and local lint are not live
+CI proof.
+
+## Guarded security-patch merges (requested; not active)
+
+The owner authorized guarded Dependabot security-patch merging on 27 October.
+This authorizes future qualifying bot merges by this guard; it does not waive
+confirmation for agent-authored pushes or manual PR merges.
+Publication and activation must be verified separately; per-push confirmation
+is required for agent-authored changes.
+This does not authorize merging human-authored security PRs #15/#3 or deploying
+products. It is repository-specific authorization, not a global auto-merge
+setting for future projects.
+
+Only npm's `security-patches` group is eligible. The group applies exclusively
+to security updates and patch versions. The controller verifies exactly one
+signature-verified Dependabot-authored commit, with a Dependabot or GitHub
+web-flow committer and verification reason `valid`. It parses the narrow signed
+metadata footer and checks the canonical same-repository bot branch. Every
+resolved version change must independently be a stable same-major/minor patch.
+
+Only the existing manifest/lock paths can change. Scripts, dependency names,
+package layout, engine requirements and other metadata must stay unchanged.
+Tarball URLs must match the package name/version on npm's registry, and SHA-512
+integrity must change. The actual npm publisher identity (including trusted
+publisher configuration) must remain unchanged; missing or changed identities
+require manual review. Registry requests receive no GitHub Authorization header,
+and HTTP redirects are refused. Added/removed packages, prereleases, minor/major, Conda,
+GitHub Actions, unknown data or broader transitive changes require review.
+
+The privileged job uses Python's standard library and fetches its policy only
+from a GitHub-verified `main` commit. It checks out no PR code, consumes no PR
+artifacts and uses no helper action packages. Read-only validation jobs run
+types, units, builds and headless browser tests; the app also runs backend tests
+and source guards against isolated fixtures. No application credentials or
+live ledger are supplied. The CI micromamba binary is release `2.10.0-0`, with
+SHA-256 `701f39c06f8e6a670a0e186c8479b9e5c0502a2f0cda6cef65d83bdd2875e8bd`.
+
+The controller requires successful `Dependency validation` AND `Dependency
+security audit` checks from GitHub Actions on the exact PR head, including any
+other native required checks. It verifies the branch is current with main, then
+uses the immediate protected merge API with the expected head SHA. It never
+queues an auto-merge request across later pushes. Completion events retry late
+CI results; stale heads and behind-main branches decline safely. No deployment
+step is added. The repository's “Allow auto-merge” checkbox is not required.
+GitHub's built-in token does not trigger post-merge push workflows. The exact
+PR head is validated before merging; the next scheduled audit checks main.
+No post-merge validation or deployment delivery is claimed.
+
+**Owner-only activation:** both main branches were unprotected in the live
+27 October read. After publishing and verifying CI, import
+[`dependabot-automerge.ruleset.json`](../security/dependabot-automerge.ruleset.json)
+under repository Settings → Rules → Rulesets. This is an active main-branch
+ruleset with no bypass actors, no force pushes/deletion, pull requests with zero
+required approvals, and up-to-date `Dependency validation` from GitHub Actions.
+The connector cannot change administration settings; no local GitHub CLI login
+is available. Do not buy a plan or widen app/token permissions incidentally.
+
+The native rule requires functional validation only. The controller separately
+requires the absolute security audit to pass before ANY automatic merge. This
+keeps known vulnerabilities blocking bots without locking out manually reviewed
+repairs when upstream fixes are unavailable. The app additionally requires the
+full OSV/Python/native workflow and its resolved inventory at the exact PR head;
+a green npm-only job cannot authorize an app merge. Until the broader security
+PR is merged and its native findings clear, app bot merges remain blocked.
+
+Active strict rules and check-source IDs are read from the metadata-accessible
+REST branch-rules API. Every effective ruleset must report this token's
+`current_user_can_bypass` as `never`; unknown/bypass-capable responses decline.
+The controller rechecks the rules and the live main tip immediately before the
+merge. The read-only API probe confirmed that bypass field exists without
+administration access. Classic-only protection is not supported. The actual
+workflow token, runner behavior and first qualifying automatic merge still
+need live verification; fixture tests are not activation proof.
+If private-repository rulesets are unavailable on the current plan, keep that
+repository manual and ask before changing plans.
+
+Review found and corrected the original administration-only GraphQL lookup,
+a self-check wait that could never become `clean`, a Chrome reinstall conflict,
+and a rule that would lock main on existing vulnerabilities. New helper actions
+were rejected after exact runtime-lock scans found known advisories, including
+Undici in fetch-metadata v3.1.0 and setup-micromamba v3.2.1. Neither is used.
+Seventeen policy tests cover the controller and parser with adversarial cases;
+disabling strict-rule enforcement makes a regression fail. Registry probes
+exercise real version metadata without installing packages. The latest complete
+local app browser run is 196 passed / one pre-existing sentinel-crawl failure;
+focused policy/runtime/source-guard tests pass. The remaining app gate failure
+is not hidden by this setup.
+
+Existing pinned checkout/setup-node/upload actions remain separate toolchain
+components: application-lock scans do not establish their bundled dependencies
+are clean. The privileged merge path uses none of them; continue upstream
+bundled-dependency checks in the security monitor.
+
+Next: approve the named guard commits for publication, keep required check names
+consistent in the existing security PRs, verify the published CI, import the
+ruleset, then verify a qualifying Dependabot PR end to end. The daily monitor
+owns follow-up and reports meaningful activation/CI failures without repeating
+unchanged findings. Behind-main branches need a Dependabot rebase before retry;
+never force-push or bypass checks to obtain an automatic merge.
+
 ## Verification status
 
 In the owner's broader local feature checkout, verified after the clean

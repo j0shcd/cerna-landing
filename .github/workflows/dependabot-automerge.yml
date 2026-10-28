@@ -1,0 +1,52 @@
+name: Guarded Dependabot security patches
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_run:
+    workflows: [Dependency security, Dependency validation]
+    types: [completed]
+permissions: {}
+jobs:
+  merge:
+    if: (github.event_name == 'pull_request_target' && github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.user.id == 49699333 && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+    concurrency:
+      group: dependabot-merge-${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}
+      cancel-in-progress: true
+    steps:
+      # Fetch only the policy at the trusted BASE commit. No action packages,
+      # PR checkout, PR artifacts or application code receive this write token.
+      - name: Verify and merge an eligible security patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -S - <<'PYTHON'
+          import base64, json, os, pathlib, re, runpy, sys, urllib.request
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  raise RuntimeError('Refusing HTTP redirect')
+          opener = urllib.request.build_opener(NoRedirect)
+          repo = os.environ['GITHUB_REPOSITORY']
+          assert repo in {'j0shcd/cerna-app', 'j0shcd/cerna-landing'}
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'}
+          request = urllib.request.Request(f'https://api.github.com/repos/{repo}/branches/main', headers=headers)
+          with opener.open(request, timeout=30) as response:
+              sha = json.load(response)['commit']['sha']
+          assert re.fullmatch(r'[0-9a-f]{40}', sha)
+          url = f'https://api.github.com/repos/{repo}/contents/scripts/dependabot_automerge.py?ref={sha}'
+          request = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+          with opener.open(request, timeout=30) as response:
+              item = json.load(response)
+          assert item['encoding'] == 'base64' and 0 < item['size'] < 128000
+          code = base64.b64decode(item['content'], validate=False)
+          assert len(code) == item['size']
+          path = pathlib.Path(os.environ['RUNNER_TEMP']) / 'trusted-merge-policy.py'
+          path.write_bytes(code)
+          sys.argv = [str(path), '--merge']
+          runpy.run_path(str(path), run_name='__main__')
+          PYTHON

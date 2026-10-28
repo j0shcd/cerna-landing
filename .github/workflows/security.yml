@@ -6,9 +6,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    paths:
-      - 'package*.json'
-      - '.github/**'
 permissions:
   contents: read
 defaults:
@@ -19,6 +16,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   npm-audit:
+    name: Dependency security audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

@@ -6,12 +6,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    paths:
-      - 'package*.json'
-      - 'security/**'
-      - 'scripts/security_audit.py'
-      - 'tests/test_security_audit.py'
-      - '.github/**'
 permissions:
   contents: read
 defaults:
@@ -22,6 +16,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   audit:
+    name: Dependency security audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

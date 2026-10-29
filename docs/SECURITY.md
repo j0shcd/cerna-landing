@@ -1,7 +1,7 @@
 # Dependency security
 
-Maintainer audit and monitoring runbook, 27 October 2026. Update after dependency
-remediation and when activating the cloud checks.
+Maintainer audit and monitoring runbook. Status verified 29 October 2026.
+Update after dependency remediation and cloud-check changes.
 
 The audit covered the complete npm lockfile, installed dependency tree, Node
 runtime, Worker deployment shape and repository automation. It checked recent
@@ -44,19 +44,21 @@ matching is not proof that a development machine was never compromised.
 
 ## Monitoring
 
-The published `.github/workflows/security.yml` runs `npm audit
---package-lock-only` daily at 06:17 UTC, on main pushes, manually and on
-dependency/workflow PRs. It checks the remote npm lock, including development
-dependencies. It installs no app packages or lifecycle scripts and has
-`contents: read`, no deployment credentials and immutable action references.
-Audit findings and command/network errors fail the job; reports remain for
-14 days. This cloud check does not compare the installed tree or enforce the
-local runtime policy. The broader local OSV scanner checks exact locked versions,
-manifest drift, incomplete responses and policy; the local heartbeat runs it
-with `--installed-npm`. Publishing that broader scanner remains a follow-up.
+The published `.github/workflows/security.yml` queries OSV for every exact
+locked npm version daily at 06:17 UTC, on main pushes, manually and on PRs.
+The scanner also checks manifest/lock agreement and the recorded Node runtime
+policy. It installs no app packages or lifecycle scripts and has
+`contents: read`, no deployment credentials and immutable action references. Findings,
+command/network errors and incomplete responses fail the job; reports remain
+for 14 days. The nine scanner regression tests run before each cloud scan.
+
+The cloud scan does not inspect the local installed tree. Use
+`python3 -S scripts/security_audit.py --installed-npm` for that additional check;
+`npm audit --package-lock-only --ignore-scripts` is a separate registry check.
 
 Dependabot is configured for weekly npm and GitHub Actions PRs, with a seven-day
-cooldown for routine npm upgrades and no auto merge. Security PRs are not delayed
+cooldown for routine npm upgrades. Guarded security-patch merging is configured
+but activation remains unverified, as described below. Security PRs are not delayed
 by the routine cooldown. Native Dependabot plus direct OSV queries was selected
 over adding Renovate, Socket or Snyk accounts. Known-malware records help with
 published compromises; they do not detect every unpublished malicious package.
@@ -67,32 +69,18 @@ the connector cannot independently read these administration settings. Actual
 updater jobs and [Dependabot PRs](https://github.com/j0shcd/cerna-landing/pulls)
 exist. Alert delivery has not been tested.
 
-The npm-only cloud workflow was published separately as `ba08308`, without the
-owner's nine unrelated pending commits. Its [first run](https://github.com/j0shcd/cerna-landing/actions/runs/40534703514)
-completed on 27 October: checkout, Node setup and report upload succeeded; the
-audit correctly failed with three vulnerable entries (one high, two moderate)
-in the remote unpatched Wrangler/Miniflare/Undici chain. Local patched locks are
-clean but not on the default branch. Automatic approval review initially
-rejected a broader Cerna private-source/design upload. The owner then explicitly
-approved security-only review PRs, excluding unrelated work and leaving merging
-and deployment off. This public repository's proposal excludes the unrelated
-analytics/welcome/unsubscribe commits and also restores the broader OSV cloud
-scan; that scan becomes active on main only after merge. Verify the PR's own
-cloud result separately from local scans and the default branch.
-
-[Security review PR #3](https://github.com/j0shcd/cerna-landing/pull/3) is open,
-unmerged. Its isolated remote-main snapshot excludes the nine local feature
-commits and passes Worker typecheck, 58 unit tests, build and all 16 browser
-tests. OSV covers 394 resolved versions with zero findings; the nine scanner
-tests pass. The [PR cloud scan](https://github.com/j0shcd/cerna-landing/actions/runs/40536248619)
-also passed and retained its report. This proves the proposed scanner runs;
-the default branch still uses its older npm-only workflow and vulnerable lock.
+The initial npm-only cloud workflow correctly reported the vulnerable
+Wrangler/Miniflare/Undici chain. The owner separately approved merging
+[security PR #3](https://github.com/j0shcd/cerna-landing/pull/3) on 29 October;
+it is merged on main as `9a4911504ebf1650c0249d52678cfab43a62bdc1`. This publishes
+the patched dependencies and broader OSV scanner. The unrelated local
+analytics/welcome/unsubscribe work remains unpublished.
 
 Failed-workflow notification delivery and available Actions minutes were not
 checked; no new subscription was created. The existing all-project 09:00 daily
 local Codex security heartbeat covers both Cerna repos, retaining its previous
 tasks without a duplicate. It stays quiet on unchanged findings. Local tasks
-need the computer on and the app running; npm cloud audits run independently.
+need the computer on and the app running; OSV cloud audits run independently.
 [Scheduled-task behavior](https://learn.chatgpt.com/docs/automations?surface=app).
 
 ```sh
@@ -114,54 +102,50 @@ script should be reviewed explicitly before allowing it. Security fixes still
 require tests and reviewed PRs. Record new exceptions with an expiry and concrete
 reachability evidence; none are currently configured here.
 
-## Cloud rollout, 28 October 2026
+## Cloud rollout, 29 October 2026
 
-The approved guard setup is published on main as `681c728`. The existing security
-PR workflows now use the same required check name. Neither dependency-fix PR
-has been merged. Main was unprotected at the last verified read; the owner
-is now creating rulesets. Automatic merge activation remains unverified.
+PR #3 merged at reviewed head `54c8da2` after fresh npm and OSV checks reported
+zero findings across its 394 resolved versions. The merged main commit's
+[security audit](https://github.com/j0shcd/cerna-landing/actions/runs/40834461783)
+passes all nine scanner tests, scans 394 versions with zero findings and retains
+the report. Its
+[validation run](https://github.com/j0shcd/cerna-landing/actions/runs/40834461778)
+passes policy checks, installation, types, units, build and browser tests.
+The merged security branch has been deleted.
 
-The [first validation run](https://github.com/j0shcd/cerna-landing/actions/runs/40652033484)
-exposed a CI bootstrap problem. Validation now pins Ubuntu 24.04, supported by
-the locked Playwright version; Ubuntu 26.04 was rejected by Playwright 1.60.0.
-The first run passed the guard policy, dependency install, typecheck, unit
-tests and build, then stopped at browser dependency installation. All 17 guard
-policy tests and workflow-aware actionlint pass after the runner pin.
+Validation pins Ubuntu 24.04 because the locked Playwright 1.60.0 rejects Ubuntu
+26.04. The metadata-only audit ran successfully on Ubuntu 26.04. The audit's
+upload-artifact v4 still emits a Node 20 deprecation warning while GitHub forces
+it onto Node 24; this warning did not fail the audit. A separate Dependabot
+upload-artifact 7.0.2 branch exists. Next toolchain step: review its bundled
+dependencies and compatibility, then validate the action update before merging.
 
-A no-install Playwright platform probe resolves Ubuntu 24.04's Linux browser
-artifacts successfully. Reintroducing the invalid runner expression in a
-temporary fixture makes actionlint fail; both repaired repositories lint clean.
-This is a regression check, not a claim that cloud browser tests have passed.
+Local main includes the remote merge while preserving the owner's unpublished
+feature commits. The 29 October preflight found recurring iCloud conflict
+copies in local node_modules. No packages were installed during this merge;
+prior installed-tree results below are historical. Before the next local app
+verification, rebuild dependencies outside iCloud using the procedure above and
+rerun the installed-tree scan. The optional PostHog key can remain unset.
 
-The owner approved publication. The runner repair is on main as `ebb7689`;
-PR #3 includes source-preserving sync `54c8da2`, which resolved the runbook
-conflict while preserving its seven existing source/dependency/scanner blobs.
-PR #3 remains unmerged.
+Next merge-policy step: verify the owner-created main ruleset, requiring only
+`Dependency validation` from GitHub Actions with strict/up-to-date branches,
+a PR with zero approvals and no bypass actors, then observe a qualifying
+Dependabot PR. `Dependency security audit` remains mandatory in the bot guard
+and stays outside native required checks. Passing CI does not prove ruleset
+activation or an actual automatic merge. The app repository's status must be
+verified separately.
 
-The repaired [main validation](https://github.com/j0shcd/cerna-landing/actions/runs/40655272575)
-and [PR validation](https://github.com/j0shcd/cerna-landing/actions/runs/40655359423)
-both pass, including browser tests. The [fresh full PR audit](https://github.com/j0shcd/cerna-landing/actions/runs/40655359354)
-passes with 394 resolved versions and zero findings. Main's older npm-only
-audit still reports its unpatched lock until the held security PR is merged.
-
-Next: verify the owner-created main ruleset, requiring only `Dependency
-validation` from GitHub Actions with strict/up-to-date branches, a PR with zero
-approvals and no bypass actors, then observe a qualifying Dependabot PR.
-`Dependency security audit` remains mandatory in the bot guard and stays outside
-native required checks. Landing validation is ready for ruleset activation;
-the app's validation is still blocked and must be handled separately. A passing
-validation job is not proof of ruleset activation or an actual automatic merge.
-
-## Guarded security-patch merges (requested; not active)
+## Guarded security-patch merges (activation unverified)
 
 The owner authorized guarded Dependabot security-patch merging on 27 October.
 This authorizes future qualifying bot merges by this guard; it does not waive
 confirmation for agent-authored pushes or manual PR merges.
 Publication and activation must be verified separately; per-push confirmation
 is required for agent-authored changes.
-This does not authorize merging human-authored security PRs #15/#3 or deploying
-products. It is repository-specific authorization, not a global auto-merge
-setting for future projects.
+Human-authored PR merges and product deployment require separate authorization.
+Landing PR #3 received that merge authorization on 29 October; app PR #15 did not
+receive authorization in this task. The guard authorization applies only to
+these repositories; it is not a global setting for future projects.
 
 Only npm's `security-patches` group is eligible. The group applies exclusively
 to security updates and patch versions. The controller verifies exactly one
@@ -249,7 +233,7 @@ owns follow-up and reports meaningful activation/CI failures without repeating
 unchanged findings. Behind-main branches need a Dependabot rebase before retry;
 never force-push or bypass checks to obtain an automatic merge.
 
-## Verification status
+## Earlier local verification, 27 October 2026
 
 In the owner's broader local feature checkout, verified after the clean
 install: Worker typecheck, 83 unit tests, the static

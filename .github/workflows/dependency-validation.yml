@@ -31,7 +31,13 @@ jobs:
           npm run check
           npm test
           npm run build
-      - name: Prepare headless Chromium
-        run: npx --no-install playwright install --with-deps chromium
+      - name: Check browser security regressions
+        run: node --test tests/browser-security.test.mjs
+      - name: Update Stable Chrome in the disposable runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install --only-upgrade --yes google-chrome-stable
+          npx --no-install playwright install-deps chrome
+          google-chrome --version
       - name: Browser tests
         run: npm run test:e2e

@@ -1,7 +1,50 @@
 # Dependency security
 
-Maintainer audit and monitoring runbook. Status verified 29 October 2026.
+Maintainer audit and monitoring runbook. Browser status verified 3 November 2026;
+the dependency rollout receipts below retain their original dates.
 Update after dependency remediation and cloud-check changes.
+
+## Browser engines, 3 November 2026 (local; publication pending)
+
+The old test setup selected Playwright 1.60.0's Chromium 148.0.7778.96 with
+Chromium's sandbox disabled by Playwright's default. Playwright itself did not
+match an npm advisory, but npm/OSV do not scan the downloaded browser engine.
+Neither Playwright nor Chromium runs in the deployed static site/Worker.
+
+Playwright is now locked to 1.64.1. Tests select the installed Stable Chrome,
+explicitly enable the sandbox, run headless and own a loopback-only static
+server. `scripts/browser-security.mjs` checks Google's platform-specific Stable
+metadata and the actual launched version before any page opens. An outdated
+browser, malformed metadata, HTTP failure or a 15-second metadata timeout
+fails the run. Update Chrome when refused; do not fall back to cached Chromium,
+disable the sandbox or bypass TLS validation. Browser tests need internet access
+to Google's release endpoint. CI upgrades the signed Stable Chrome package in
+its disposable runner before testing; it no longer downloads bundled Chromium.
+
+Observed Chrome 156.0.8078.80 matches Google's current Mac Stable release. The
+October 29 update contains 21 security fixes, including CVE-2026-76024. Even
+Playwright 1.64.1's bundled Chromium 156.0.8078.4 predates that patch, so updating
+the npm package alone would not close this gap. The older Playwright installer
+certificate issue, CVE-2025-59288, affects versions below 1.55.1 and does not
+match either inspected version.
+[Chrome release](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_02107719452.html),
+[Playwright advisory](https://github.com/advisories/GHSA-7mvr-c777-76hp),
+[sandbox option](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-option-chromium-sandbox).
+
+The iCloud-corrupted dependency tree was replaced from an install built outside
+Documents with lifecycle scripts disabled. Its previous contents remain at
+`/private/tmp/cerna-landing-browser-89c_nkmt/previous-node_modules`. Verification:
+types, 83 units, 22 browser tests, seven browser-security regressions, nine
+scanner tests, 17 merge-policy tests and actionlint pass. The installed OSV
+scan checks 405 versions/262 installed identities with zero findings; npm audit
+is also clean. All 262 packages have verified registry signatures, including
+110 attestations. Restoring the old runner configuration makes the boundary
+regression fail; removing the version check makes both stale-browser tests fail.
+
+These changes are local and have not been deployed or verified on GitHub.
+Next: publish the bounded browser-security commit after named push approval,
+then verify its hosted validation. The regular package-only cloud scan is not
+proof of browser-engine coverage; the version preflight runs with browser tests.
 
 The audit covered the complete npm lockfile, installed dependency tree, Node
 runtime, Worker deployment shape and repository automation. It checked recent

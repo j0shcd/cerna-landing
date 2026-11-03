@@ -14,4 +14,4 @@ createServer(async (req, res) => {
     const body = await readFile(join(root, path));
     res.writeHead(200, { 'content-type': types[extname(path)] ?? 'application/octet-stream' }).end(body);
   } catch { res.writeHead(404).end(); }
-}).listen(Number(process.env.PORT ?? 4329));
+}).listen(Number(process.env.PORT ?? 4329), '127.0.0.1');

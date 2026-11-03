@@ -4,7 +4,7 @@ Maintainer audit and monitoring runbook. Browser status verified 3 November 2026
 the dependency rollout receipts below retain their original dates.
 Update after dependency remediation and cloud-check changes.
 
-## Browser engines, 3 November 2026 (local; publication pending)
+## Browser engines, 3 November 2026 (published; CI repair pending)
 
 The old test setup selected Playwright 1.60.0's Chromium 148.0.7778.96 with
 Chromium's sandbox disabled by Playwright's default. Playwright itself did not
@@ -41,10 +41,33 @@ is also clean. All 262 packages have verified registry signatures, including
 110 attestations. Restoring the old runner configuration makes the boundary
 regression fail; removing the version check makes both stale-browser tests fail.
 
-These changes are local and have not been deployed or verified on GitHub.
-Next: publish the bounded browser-security commit after named push approval,
-then verify its hosted validation. The regular package-only cloud scan is not
-proof of browser-engine coverage; the version preflight runs with browser tests.
+Josh approved publishing `13af7a9`, now on GitHub main. Its
+[security scan](https://github.com/j0shcd/cerna-landing/actions/runs/41613543205)
+passes. Its [validation run](https://github.com/j0shcd/cerna-landing/actions/runs/41613543446)
+passes policy tests, installation, types, units, build and the seven browser
+regressions, then refuses to open pages: the hosted image has Chrome
+156.0.8078.47 while Linux Stable requires 156.0.8078.79. Apt incorrectly appeared
+current because that runner did not have Google's repository configured. This
+is fail-closed evidence, not a completed browser validation.
+
+The local follow-up `scripts/prepare_ci_chrome.py` exports only Google's active
+primary key, fingerprint `EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796`, into a
+fresh temporary Deb822 source. Apt uses this source for the update/upgrade;
+no global repository or trust files are written. The helper refuses execution
+outside Linux x64 GitHub Actions. Eight rehearsals cover missing sources,
+wrong keys, failed downloads/signature checks, foreign-file preservation,
+symlinks, unusual paths, safe reruns and local-machine refusal. Removing the
+source override reproduces the stale-browser failure and fails the regression.
+The official live key contains the pinned fingerprint. Actionlint and the
+existing scanner/policy/browser tests pass. No Linux installation or successful
+hosted browser run is claimed for this unpushed follow-up.
+[Google signing-key policy](https://www.google.com/linuxrepositories/),
+[Ubuntu's embedded Signed-By format](https://manpages.ubuntu.com/manpages/noble/man5/sources.list.5.html).
+
+Next: obtain named push approval for this CI preparation repair, then verify
+updated Chrome, its sandbox and the full hosted browser suite. The regular
+package-only cloud scan is not proof of browser-engine coverage. No deployment
+command or remote security-setting change was run.
 
 The audit covered the complete npm lockfile, installed dependency tree, Node
 runtime, Worker deployment shape and repository automation. It checked recent

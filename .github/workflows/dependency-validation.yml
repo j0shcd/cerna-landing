@@ -23,7 +23,9 @@ jobs:
           node-version: '24.22.1'
           package-manager-cache: false
       - name: Check the merge policy
-        run: python3 -S tests/test_dependabot_automerge.py
+        run: |
+          python3 -S tests/test_dependabot_automerge.py
+          python3 -S tests/test_prepare_ci_chrome.py
       - name: Install locked dependencies without lifecycle scripts
         run: npm ci --ignore-scripts
       - name: Types, units and production build
@@ -35,8 +37,7 @@ jobs:
         run: node --test tests/browser-security.test.mjs
       - name: Update Stable Chrome in the disposable runner
         run: |
-          sudo apt-get update
-          sudo apt-get install --only-upgrade --yes google-chrome-stable
+          python3 -S scripts/prepare_ci_chrome.py
           npx --no-install playwright install-deps chrome
           google-chrome --version
       - name: Browser tests

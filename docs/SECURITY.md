@@ -20,9 +20,11 @@ installed identities with zero findings and no exceptions. Actionlint and
 regressions; the repaired guard passes. Local logs use
 `/private/tmp/cerna-landing-repair-*`. No deployment occurred.
 
-Next bounded step: publish the review branch, require fresh hosted checks, then
-merge the reviewed setup and verify an active ruleset plus the first qualifying
-routine bot PR. Configuration and fixture tests alone do not prove activation.
+Publication, final head, hosted checks and merge state are owned by
+[PR #11](https://github.com/j0shcd/cerna-landing/pull/11), published at `5971d5e`.
+Next bounded step: review and merge the verified final head, then observe the
+first qualifying routine bot PR. Ruleset metadata and fixture tests alone do
+not establish successful automatic merging.
 
 ## Browser engines, 5 November 2026
 
@@ -321,8 +323,7 @@ components: application-lock scans do not establish their bundled dependencies
 are clean. The privileged merge path uses none of them; continue upstream
 bundled-dependency checks in the security monitor.
 
-Next: verify the owner-created ruleset and a qualifying Dependabot PR end to
-end. The daily monitor
+Next: verify the published policy with a qualifying Dependabot PR end to end. The daily monitor
 owns follow-up and reports meaningful activation/CI failures without repeating
 unchanged findings. Behind-main branches need a Dependabot rebase before retry;
 never force-push or bypass checks to obtain an automatic merge.

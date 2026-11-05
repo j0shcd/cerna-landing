@@ -13,6 +13,7 @@ REPOSITORIES = {'j0shcd/cerna-app': 'frontend/', 'j0shcd/cerna-landing': ''}
 CHECKS = {'Dependency security audit', 'Dependency validation'}
 VERSION = re.compile(r'^(\d+)\.(\d+)\.(\d+)$')
 DEPENDENCIES = {'dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'}
+GROUPS = {'security-patches', 'routine-updates'}
 
 
 class Ineligible(ValueError):
@@ -24,24 +25,27 @@ def require(condition, reason):
         raise Ineligible(reason)
 
 
-def patch(before, after):
+def patch(before, after, *, allow_minor=False):
     old, new = VERSION.fullmatch(before), VERSION.fullmatch(after)
     require(old is not None and new is not None, 'non-stable or unknown version')
     a, b = tuple(map(int, old.groups())), tuple(map(int, new.groups()))
-    require(a[:2] == b[:2] and a[2] < b[2], 'not a patch-only increase')
+    if allow_minor:
+        require(a < b and a[0] == b[0] and (a[0] > 0 or a[1] == b[1]), 'not a compatible stable increase')
+    else:
+        require(a[:2] == b[:2] and a[2] < b[2], 'not a patch-only increase')
 
 
-def versions_only(before, after):
+def versions_only(before, after, *, allow_minor=False):
     old, new = copy.deepcopy(before), copy.deepcopy(after)
     for section in DEPENDENCIES:
         a, b = old.pop(section, {}), new.pop(section, {})
         require(a.keys() == b.keys(), 'dependency added or removed')
         for name in a:
             if a[name] != b[name]:
-                # Preserve the existing range operator as well as major/minor.
+                # Preserve the range operator; 0.x minor updates require review.
                 x, y = re.fullmatch(r'([~^]?)(\d+\.\d+\.\d+)', a[name]), re.fullmatch(r'([~^]?)(\d+\.\d+\.\d+)', b[name])
                 require(x is not None and y is not None and x[1] == y[1], 'dependency range changed')
-                patch(x[2], y[2])
+                patch(x[2], y[2], allow_minor=allow_minor)
     require(old == new, 'manifest contains non-version changes')
 
 
@@ -52,8 +56,11 @@ def eligible(repo, pr, metadata, files, protection, old_manifest, new_manifest, 
     require(pr.get('commits') == 1, 'exactly one verified Dependabot commit is required')
     require(pr['user']['login'] == 'dependabot[bot]' and pr['user']['id'] == 49699333, 'not Dependabot')
     require(pr['base']['ref'] == 'main' and pr['base']['repo']['full_name'] == repo and pr['head']['repo']['full_name'] == repo, 'wrong base or fork')
-    require(metadata.get('group') == 'security-patches', 'not the security-only group')
-    require(metadata.get('update_type') == 'version-update:semver-patch', 'not a patch update')
+    require(metadata.get('group') in GROUPS, 'not an approved dependency group')
+    update_type = metadata.get('update_type')
+    require(update_type in {'version-update:semver-patch', 'version-update:semver-minor'}, 'not a patch or minor update')
+    allow_minor = metadata['group'] == 'routine-updates' and update_type == 'version-update:semver-minor'
+    require(metadata['group'] != 'security-patches' or update_type == 'version-update:semver-patch', 'security group must contain patches only')
     require(metadata.get('ecosystem') in {'npm', 'npm_and_yarn'}, 'unsupported ecosystem')
     require(metadata.get('directory') == '/' + prefix.rstrip('/'), 'wrong dependency directory')
     require(files and len(files) == pr['changed_files'], 'incomplete file list')
@@ -63,19 +70,19 @@ def eligible(repo, pr, metadata, files, protection, old_manifest, new_manifest, 
     require(protection and protection.get('requiresStatusChecks') is True and protection.get('requiresStrictStatusChecks') is True and protection.get('activeRulesVerified') is True, 'strict branch protection is missing or unreadable')
     require(protection.get('requiresApprovingReviews') is False, 'review approval is required; leave for review')
     require({'Dependency validation'} <= set(protection.get('requiredStatusCheckContexts') or []), 'required validation checks are missing')
-    versions_only(old_manifest, new_manifest)
+    versions_only(old_manifest, new_manifest, allow_minor=allow_minor)
     a, b = copy.deepcopy(old_lock), copy.deepcopy(new_lock)
     old, new = a.pop('packages'), b.pop('packages')
     require(a == b and a.get('lockfileVersion') == 3, 'lock metadata changed')
     require(old.keys() == new.keys(), 'lock packages added, removed or relocated')
-    versions_only(old[''], new[''])
+    versions_only(old[''], new[''], allow_minor=allow_minor)
     changed = 0
     for path in old.keys() - {''}:
         if old[path] == new[path]:
             continue
         x, y = dict(old[path]), dict(new[path])
         previous, version = x.pop('version', ''), y.pop('version', '')
-        patch(previous, version)
+        patch(previous, version, allow_minor=allow_minor)
         name = path.rsplit('node_modules/', 1)[-1]
         expected_url = f"https://registry.npmjs.org/{name}/-/{name.rsplit('/', 1)[-1]}-{version}.tgz"
         resolved, integrity = y.get('resolved', ''), y.get('integrity', '')
@@ -92,7 +99,7 @@ def eligible(repo, pr, metadata, files, protection, old_manifest, new_manifest, 
 
 def signed_metadata(commit_message, pr, repo):
     # Parse only the narrow, signed Dependabot footer, never arbitrary YAML.
-    # Patch-only is independently checked against EVERY resolved version below.
+    # Compatibility is independently checked against EVERY resolved version.
     require(len(commit_message) <= 128000, 'oversized bot metadata')
     lines = commit_message.splitlines()
     require(lines.count('---') == 1 and lines.count('...') == 1, 'unknown bot metadata format')
@@ -107,10 +114,15 @@ def signed_metadata(commit_message, pr, repo):
             key, value = line[2:].split(': ', 1)
             require(key in {'dependency-version', 'dependency-type', 'dependency-group', 'update-type'} and key not in records[-1], 'unknown or duplicate metadata field')
             records[-1][key] = value
-    require(records and all(r.get('dependency-group') == 'security-patches' and r.get('update-type', 'version-update:semver-patch') == 'version-update:semver-patch' for r in records), 'not exclusively security patches')
+    require(records, 'missing dependency records')
+    group = records[0].get('dependency-group')
+    require(group in GROUPS and all(r.get('dependency-group') == group for r in records), 'unknown or mixed dependency groups')
+    types = {r.get('update-type', 'version-update:semver-patch' if group == 'security-patches' else None) for r in records}
+    allowed_types = {'version-update:semver-patch'} if group == 'security-patches' else {'version-update:semver-patch', 'version-update:semver-minor'}
+    require(types <= allowed_types, 'unsupported dependency update type')
     prefix = REPOSITORIES[repo]
-    require(pr['head']['ref'].startswith('dependabot/npm_and_yarn/' + prefix + 'security-patches-'), 'unexpected bot branch')
-    return {'group': 'security-patches', 'update_type': 'version-update:semver-patch', 'ecosystem': 'npm_and_yarn', 'directory': '/' + prefix.rstrip('/')}
+    require(pr['head']['ref'].startswith('dependabot/npm_and_yarn/' + prefix + group + '-'), 'unexpected bot branch')
+    return {'group': group, 'update_type': 'version-update:semver-minor' if 'version-update:semver-minor' in types else 'version-update:semver-patch', 'ecosystem': 'npm_and_yarn', 'directory': '/' + prefix.rstrip('/')}
 
 
 def active_protection(rules):
@@ -239,7 +251,7 @@ def main():
     require_full_app_audit(repo, expected)
     verify_publishers(manifests[2], manifests[3])
     if not args.merge:
-        print('Eligible security patch; check-only mode, no merge attempted')
+        print('Eligible dependency update; check-only mode, no merge attempted')
         return
     required = set(protection['requiredStatusCheckContexts']) | CHECKS
     deadline = time.monotonic() + 25 * 60
@@ -263,7 +275,7 @@ def main():
             # Immediate protected merge, never queue a request across later pushes.
             merged = api(f'repos/{repo}/pulls/{number}/merge', {'sha': expected, 'merge_method': 'squash'}, method='PUT')
             require(merged.get('merged') is True, 'GitHub declined the protected merge')
-            print('Merged the verified security-patch head through branch protection')
+            print('Merged the verified dependency head through branch protection')
             return
         time.sleep(15)
     raise Ineligible('required checks did not finish in the allowed time')

@@ -4,6 +4,26 @@ Maintainer audit and monitoring runbook. Browser status verified 5 November 2026
 the dependency rollout receipts below retain their original dates.
 Update after dependency remediation and cloud-check changes.
 
+## PR repair verification, 5 November 2026
+
+The repair checkout replays the earlier local Chrome rollout fix on published
+main `64a6adb`, then adds the guarded routine-update policy. The existing landing
+PRs #4, #5, #6, #8 and #9 had passing functional/security runs; those older heads
+still need current-base review. Major Actions updates are not routine npm
+patches, and their bundled dependencies need separate review.
+
+Local verification passes types, 83 units, 10 browser-policy tests, eight Chrome
+preparation tests, nine scanner tests, 21 merge-policy tests, the production
+build and all 22 headless browser tests. OSV covers 405 locked versions and 262
+installed identities with zero findings and no exceptions. Actionlint and
+`git diff --check` pass. The old security-only guard rejects the new routine
+regressions; the repaired guard passes. Local logs use
+`/private/tmp/cerna-landing-repair-*`. No deployment occurred.
+
+Next bounded step: publish the review branch, require fresh hosted checks, then
+merge the reviewed setup and verify an active ruleset plus the first qualifying
+routine bot PR. Configuration and fixture tests alone do not prove activation.
+
 ## Browser engines, 5 November 2026
 
 Playwright is locked to 1.64.1. Tests select installed Stable Chrome, explicitly
@@ -32,9 +52,8 @@ rolled new milestone and invalid evidence. Restoring the old lookup fails the
 Early Stable regression. A live Google API probe accepts 157.0.8103.39 and rejects
 156.0.8078.80 with browser launch stubbed; no browser or page opened. Types,
 83 units, eight Chrome-preparation tests, nine scanner tests, 17 merge-policy
-tests and actionlint pass. This repair is local pending named push approval;
-no new browser E2E run is claimed while the shared Chrome runtime is reserved by
-the other Cerna security chat.
+tests and actionlint passed in that earlier slice. The isolated repair above
+now also passes the complete browser suite after the runtime hold was released.
 
 The earlier CI preparation repair is published in
 [PR #10](https://github.com/j0shcd/cerna-landing/pull/10), merged as
@@ -203,24 +222,25 @@ and stays outside native required checks. Passing CI does not prove ruleset
 activation or an actual automatic merge. The app repository's status must be
 verified separately.
 
-## Guarded security-patch merges (activation unverified)
+## Guarded dependency updates
 
-The owner authorized guarded Dependabot security-patch merging on 27 October.
-This authorizes future qualifying bot merges by this guard; it does not waive
-confirmation for agent-authored pushes or manual PR merges.
-Publication and activation must be verified separately; per-push confirmation
-is required for agent-authored changes.
-Human-authored PR merges and product deployment require separate authorization.
-Landing PR #3 received that merge authorization on 29 October; app PR #15 did not
-receive authorization in this task. The guard authorization applies only to
-these repositories; it is not a global setting for future projects.
+On 5 November the owner requested repair PRs with review messages in the Cerna
+repair chat, and automatic merging for verified routine compatible updates.
+The existing daily 09:00 Europe/Zurich monitor now owns creating or updating one
+bounded repair PR per cause and delivering its link, checks and review question
+to chat `01a1abd9-2f38-7861-b44d-0c8ec92945bd`. It can publish scoped repair
+branches; unrelated work, deployment, credentials and access changes remain
+outside that authorization. Breaking changes and incomplete verification need
+owner review. The monitor stays quiet for unchanged state and known blockers.
+Local monitoring needs the computer on and the app running; this is a scheduled
+repair loop, not an immediate GitHub event-triggered agent.
 
-Only npm's `security-patches` group is eligible. The group applies exclusively
-to security updates and patch versions. The controller verifies exactly one
-signature-verified Dependabot-authored commit, with a Dependabot or GitHub
-web-flow committer and verification reason `valid`. It parses the narrow signed
-metadata footer and checks the canonical same-repository bot branch. Every
-resolved version change must independently be a stable same-major/minor patch.
+The guard accepts npm's `security-patches` group for stable patch updates and
+`routine-updates` for stable compatible patch/minor updates. Pre-1.0 minor
+increases require review. Every direct and transitive version change is checked;
+the group label cannot authorize a hidden major change. The controller requires
+exactly one signature-verified Dependabot commit, a Dependabot or GitHub web-flow
+committer, signed group/update metadata and the matching same-repository branch.
 
 Only the existing manifest/lock paths can change. Scripts, dependency names,
 package layout, engine requirements and other metadata must stay unchanged.
@@ -228,8 +248,10 @@ Tarball URLs must match the package name/version on npm's registry, and SHA-512
 integrity must change. The actual npm publisher identity (including trusted
 publisher configuration) must remain unchanged; missing or changed identities
 require manual review. Registry requests receive no GitHub Authorization header,
-and HTTP redirects are refused. Added/removed packages, prereleases, minor/major, Conda,
-GitHub Actions, unknown data or broader transitive changes require review.
+and HTTP redirects are refused. Added/removed packages, prereleases, major or
+pre-1.0 minor upgrades, Conda, GitHub Actions, unknown data and broader metadata
+changes require review. Human-authored repairs require owner review; the
+privileged guard never executes their code.
 
 The privileged job uses Python's standard library and fetches its policy only
 from a GitHub-verified `main` commit. It checks out no PR code, consumes no PR
@@ -250,8 +272,12 @@ GitHub's built-in token does not trigger post-merge push workflows. The exact
 PR head is validated before merging; the next scheduled audit checks main.
 No post-merge validation or deployment delivery is claimed.
 
-**Owner-only activation:** both main branches were unprotected in the live
-27 October read. After publishing and verifying CI, import
+**Protection verified, 5 November:** the owner imported the ruleset and a fresh
+API read confirms active enforcement on `refs/heads/main`, no bypass actors,
+`current_user_can_bypass: never`, strict/up-to-date status checks and
+`Dependency validation` bound to GitHub Actions. This repository’s ruleset is
+`26617089`. The live workflow token and first qualifying merge still need
+verification after publication. To recreate this protection, import
 [`dependabot-automerge.ruleset.json`](../security/dependabot-automerge.ruleset.json)
 under repository Settings → Rules → Rulesets. This is an active main-branch
 ruleset with no bypass actors, no force pushes/deletion, pull requests with zero

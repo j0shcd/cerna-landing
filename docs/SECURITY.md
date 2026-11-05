@@ -1,73 +1,75 @@
 # Dependency security
 
-Maintainer audit and monitoring runbook. Browser status verified 3 November 2026;
+Maintainer audit and monitoring runbook. Browser status verified 5 November 2026;
 the dependency rollout receipts below retain their original dates.
 Update after dependency remediation and cloud-check changes.
 
-## Browser engines, 3 November 2026 (published; CI repair pending)
+## Browser engines, 5 November 2026
 
-The old test setup selected Playwright 1.60.0's Chromium 148.0.7778.96 with
-Chromium's sandbox disabled by Playwright's default. Playwright itself did not
-match an npm advisory, but npm/OSV do not scan the downloaded browser engine.
-Neither Playwright nor Chromium runs in the deployed static site/Worker.
+Playwright is locked to 1.64.1. Tests select installed Stable Chrome, explicitly
+require its sandbox, run headless and own a loopback-only static server. The
+previous setup used Chromium 148 with the sandbox disabled. npm/OSV scan packages,
+not downloaded browser engines. Neither browser runs in the deployed static site.
 
-Playwright is now locked to 1.64.1. Tests select the installed Stable Chrome,
-explicitly enable the sandbox, run headless and own a loopback-only static
-server. `scripts/browser-security.mjs` checks Google's platform-specific Stable
-metadata and the actual launched version before any page opens. An outdated
-browser, malformed metadata, HTTP failure or a 15-second metadata timeout
-fails the run. Update Chrome when refused; do not fall back to cached Chromium,
-disable the sandbox or bypass TLS validation. Browser tests need internet access
-to Google's release endpoint. CI upgrades the signed Stable Chrome package in
-its disposable runner before testing; it no longer downloads bundled Chromium.
+`scripts/browser-security.mjs` checks Google's platform-specific VersionHistory
+API and the actual launched version before opening any page. Select the newest
+milestone with an active full-rollout record (`fraction=1`), then require its
+newest patch with a positive active rollout. Early Stable for the next milestone
+does not prematurely replace the released milestone; staged patches within the
+released milestone still require an update immediately. Fractions from different
+rollout groups are never added. The minimum security floor is 157.0.8103.38 on
+Linux and 157.0.8103.39 on Mac/Windows. Outdated Chrome, missing full-rollout
+evidence, malformed/ended/future records, incomplete pagination, HTTP errors and
+a 15-second timeout fail closed. Update Chrome when refused; keep sandbox and TLS
+validation enabled. Browser tests require access to Google's release endpoint.
+[VersionHistory reference](https://developer.chrome.com/docs/web-platform/versionhistory/reference),
+[Early Stable release](https://chromereleases.googleblog.com/2026/11/early-stable-update-for-desktop.html).
 
-Observed Chrome 156.0.8078.80 matches Google's current Mac Stable release. The
-October 29 update contains 21 security fixes, including CVE-2026-76024. Even
-Playwright 1.64.1's bundled Chromium 156.0.8078.4 predates that patch, so updating
-the npm package alone would not close this gap. The older Playwright installer
-certificate issue, CVE-2025-59288, affects versions below 1.55.1 and does not
-match either inspected version.
-[Chrome release](https://chromereleases.googleblog.com/2026/10/stable-channel-update-for-desktop_02107719452.html),
-[Playwright advisory](https://github.com/advisories/GHSA-7mvr-c777-76hp),
-[sandbox option](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-option-chromium-sandbox).
+The November 5 repair replaces the ChromiumDash newest-version lookup, which
+advertised Early Stable 158.0.8127.18 while Mac Stable still supplied 157.0.8103.39.
+Ten browser-policy tests pass, including Early Stable, staged patches, a fully
+rolled new milestone and invalid evidence. Restoring the old lookup fails the
+Early Stable regression. A live Google API probe accepts 157.0.8103.39 and rejects
+156.0.8078.80 with browser launch stubbed; no browser or page opened. Types,
+83 units, eight Chrome-preparation tests, nine scanner tests, 17 merge-policy
+tests and actionlint pass. This repair is local pending named push approval;
+no new browser E2E run is claimed while the shared Chrome runtime is reserved by
+the other Cerna security chat.
 
-The iCloud-corrupted dependency tree was replaced from an install built outside
-Documents with lifecycle scripts disabled. Its previous contents remain at
-`/private/tmp/cerna-landing-browser-89c_nkmt/previous-node_modules`. Verification:
-types, 83 units, 22 browser tests, seven browser-security regressions, nine
-scanner tests, 17 merge-policy tests and actionlint pass. The installed OSV
-scan checks 405 versions/262 installed identities with zero findings; npm audit
-is also clean. All 262 packages have verified registry signatures, including
-110 attestations. Restoring the old runner configuration makes the boundary
-regression fail; removing the version check makes both stale-browser tests fail.
+The earlier CI preparation repair is published in
+[PR #10](https://github.com/j0shcd/cerna-landing/pull/10), merged as
+`64a6adb9b654cd4cb3c325b9b90936dbf250cdc3`. Its post-merge
+[validation](https://github.com/j0shcd/cerna-landing/actions/runs/41828653817) and
+[security scan](https://github.com/j0shcd/cerna-landing/actions/runs/41828653818)
+passed on that exact SHA. Hosted logs verify signed Linux Chrome 157.0.8103.38,
+sandboxed preflight, 22 browser tests, 83 units and eight preparation rehearsals.
+Those runs cover the previous release lookup; the November 5 change still needs
+its own hosted checks. The merged review branch was removed after ancestry and
+clean-checkout checks.
 
-Josh approved publishing `13af7a9`, now on GitHub main. Its
-[security scan](https://github.com/j0shcd/cerna-landing/actions/runs/41613543205)
-passes. Its [validation run](https://github.com/j0shcd/cerna-landing/actions/runs/41613543446)
-passes policy tests, installation, types, units, build and the seven browser
-regressions, then refuses to open pages: the hosted image has Chrome
-156.0.8078.47 while Linux Stable requires 156.0.8078.79. Apt incorrectly appeared
-current because that runner did not have Google's repository configured. This
-is fail-closed evidence, not a completed browser validation.
-
-The local follow-up `scripts/prepare_ci_chrome.py` exports only Google's active
-primary key, fingerprint `EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796`, into a
-fresh temporary Deb822 source. Apt uses this source for the update/upgrade;
-no global repository or trust files are written. The helper refuses execution
-outside Linux x64 GitHub Actions. Eight rehearsals cover missing sources,
-wrong keys, failed downloads/signature checks, foreign-file preservation,
-symlinks, unusual paths, safe reruns and local-machine refusal. Removing the
-source override reproduces the stale-browser failure and fails the regression.
-The official live key contains the pinned fingerprint. Actionlint and the
-existing scanner/policy/browser tests pass. No Linux installation or successful
-hosted browser run is claimed for this unpushed follow-up.
+`scripts/prepare_ci_chrome.py` exports only Google's active primary key,
+fingerprint `EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796`, into a fresh temporary
+Deb822 source. Apt uses this source for update/upgrade; no global repository or
+trust files are written. The helper refuses execution outside Linux x64 GitHub
+Actions. Rehearsals cover missing sources, wrong keys, failed downloads/signature
+checks, foreign-file preservation, symlinks, unusual paths, safe reruns and local
+refusal. Removing the source override fails its regression. The earlier main
+push `13af7a9` had correctly refused stale runner Chrome because Google's apt
+repository was missing; the merged preparation repair resolves that failure.
 [Google signing-key policy](https://www.google.com/linuxrepositories/),
-[Ubuntu's embedded Signed-By format](https://manpages.ubuntu.com/manpages/noble/man5/sources.list.5.html).
+[Ubuntu Signed-By format](https://manpages.ubuntu.com/manpages/noble/man5/sources.list.5.html).
 
-Next: obtain named push approval for this CI preparation repair, then verify
-updated Chrome, its sandbox and the full hosted browser suite. The regular
-package-only cloud scan is not proof of browser-engine coverage. No deployment
-command or remote security-setting change was run.
+The November 3 installed OSV scan checked 405 versions/262 identities with zero
+findings; npm audit was clean. Registry signatures were verified for all 262
+packages, including 110 attestations. These dated scans do not establish today's
+advisory state. November 5 dependencies were rebuilt from the unchanged lock
+outside iCloud without lifecycle scripts; the old tree remains at
+`/private/tmp/cerna-landing-rollout-deps-m5skfvsv/previous-node_modules`.
+An unrelated `.git/index 2` conflict copy is preserved for owner review.
+
+Next: publish the November 5 release-selection repair after named approval and
+verify its exact hosted head before merging. Package-only scans are not browser
+coverage. No deployment or remote security-setting change was performed.
 
 The audit covered the complete npm lockfile, installed dependency tree, Node
 runtime, Worker deployment shape and repository automation. It checked recent

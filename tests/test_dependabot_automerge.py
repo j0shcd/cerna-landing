@@ -29,6 +29,29 @@ class PolicyTests(unittest.TestCase):
             with self.subTest(repo=repo):
                 policy.eligible(*fixture(repo))
 
+    def test_routine_patch_and_compatible_minor_in_both_repos(self):
+        for repo in policy.REPOSITORIES:
+            for target, update_type in [('1.2.4', 'patch'), ('1.3.0', 'minor')]:
+                with self.subTest(repo=repo, target=target):
+                    args = fixture(repo)
+                    args[2].update(group='routine-updates', update_type='version-update:semver-' + update_type)
+                    args[6]['dependencies']['example'] = '^' + target
+                    args[8]['packages'][''] = copy.deepcopy(args[6])
+                    args[8]['packages']['node_modules/example'].update(version=target, resolved=f'https://registry.npmjs.org/example/-/example-{target}.tgz')
+                    policy.eligible(*args)
+
+    def test_routine_major_zero_minor_and_hidden_transitive_major_need_review(self):
+        for before, target in [('1.2.3', '2.0.0'), ('0.2.3', '0.3.0'), ('1.2.3', '1.1.0')]:
+            with self.subTest(before=before, target=target):
+                args = fixture()
+                args[2].update(group='routine-updates', update_type='version-update:semver-minor')
+                # Keep the direct declaration unchanged: transitive versions
+                # must independently satisfy the same compatibility boundary.
+                args[7]['packages']['node_modules/example']['version'] = before
+                args[8]['packages']['node_modules/example'].update(version=target, resolved=f'https://registry.npmjs.org/example/-/example-{target}.tgz')
+                with self.assertRaises(policy.Ineligible):
+                    policy.eligible(*args)
+
     def test_lock_only_security_update(self):
         args = fixture(); args[3] = args[3][1:]; args[1]['changed_files'] = 1
         args[6] = copy.deepcopy(args[5]); args[8]['packages'][''] = copy.deepcopy(args[5])
@@ -87,7 +110,7 @@ class PolicyTests(unittest.TestCase):
             policy.eligible(*args)
 
 class MergeLifecycleTests(unittest.TestCase):
-    def exercise(self, *, move=False, fail=False, spoof=False, missing=False, check_only=False, unverified=False, workflow_run=False, wrong_committer=False, wrong_check_head=False, pending=False, behind=False, native_validation_only=False, bypass=False, bypass_after=False, new_main=False, missing_native=False):
+    def exercise(self, *, move=False, fail=False, spoof=False, missing=False, check_only=False, unverified=False, workflow_run=False, wrong_committer=False, wrong_check_head=False, pending=False, behind=False, native_validation_only=False, bypass=False, bypass_after=False, new_main=False, missing_native=False, routine=False):
         import contextlib
         import io
         import json
@@ -100,7 +123,7 @@ class MergeLifecycleTests(unittest.TestCase):
         pr.update(number=7, mergeable=True, mergeable_state='unstable')
         pr['base']['sha'] = 'b' * 40
         pr['head']['sha'] = sha
-        pr['head']['ref'] = 'dependabot/npm_and_yarn/frontend/security-patches-1234'
+        pr['head']['ref'] = 'dependabot/npm_and_yarn/frontend/' + ('routine-updates' if routine else 'security-patches') + '-1234'
         current = copy.deepcopy(pr)
         if move:
             current['head']['sha'] = 'c' * 40
@@ -122,7 +145,7 @@ class MergeLifecycleTests(unittest.TestCase):
                 pr_reads.append(path)
                 return pr if len(pr_reads) == 1 else current
             if '/commits?per_page=' in path:
-                return [{'sha': sha, 'author': {'id': 49699333}, 'committer': {'id': 1 if wrong_committer else 19864447}, 'commit': {'message': 'Patch\n\n---\nupdated-dependencies:\n- dependency-name: example\n  dependency-group: security-patches\n...\n', 'verification': {'verified': not unverified, 'reason': 'valid'}}}]
+                return [{'sha': sha, 'author': {'id': 49699333}, 'committer': {'id': 1 if wrong_committer else 19864447}, 'commit': {'message': 'Patch\n\n---\nupdated-dependencies:\n- dependency-name: example\n  dependency-group: ' + ('routine-updates\n  update-type: version-update:semver-patch' if routine else 'security-patches') + '\n...\n', 'verification': {'verified': not unverified, 'reason': 'valid'}}}]
             if '/files?' in path:
                 return files
             if path == 'repos/' + repo:
@@ -153,6 +176,11 @@ class MergeLifecycleTests(unittest.TestCase):
         writes = self.exercise()
         self.assertEqual(writes, [('repos/j0shcd/cerna-app/pulls/7/merge', {'sha': 'a' * 40, 'merge_method': 'squash'})])
 
+    def test_routine_update_uses_the_same_exact_head_and_security_checks(self):
+        self.assertEqual(len(self.exercise(routine=True)), 1)
+        with self.assertRaises(policy.Ineligible):
+            self.exercise(routine=True, fail=True)
+
     def test_completion_event_retries_the_same_verified_head(self):
         self.assertEqual(len(self.exercise(workflow_run=True)), 1)
 
@@ -178,6 +206,18 @@ class MetadataAndRuleTests(unittest.TestCase):
         for bad in [message.replace('security-patches', 'routine'), message.replace('  dependency-group: security-patches\n', ''), message.replace('...\n', ''), message + '\n---\n', message.replace('...\n', '  dependency-group: security-patches\n...\n'), message.replace('...\n', '  update-type: version-update:semver-minor\n...\n')]:
             with self.subTest(message=bad), self.assertRaises(policy.Ineligible):
                 policy.signed_metadata(bad, {'head': {'ref': 'dependabot/npm_and_yarn/frontend/security-patches-1234'}}, 'j0shcd/cerna-app')
+
+    def test_signed_routine_footer_requires_explicit_types_and_matching_branch(self):
+        message = 'Update\n\n---\nupdated-dependencies:\n- dependency-name: example\n  dependency-group: routine-updates\n  update-type: version-update:semver-minor\n...\n'
+        pr = {'head': {'ref': 'dependabot/npm_and_yarn/frontend/routine-updates-1234'}}
+        metadata = policy.signed_metadata(message, pr, 'j0shcd/cerna-app')
+        self.assertEqual(metadata['group'], 'routine-updates')
+        self.assertEqual(metadata['update_type'], 'version-update:semver-minor')
+        for bad in [message.replace('  update-type: version-update:semver-minor\n', ''), message.replace('semver-minor', 'semver-major'), message.replace('...\n', '- dependency-name: other\n  dependency-group: security-patches\n...\n')]:
+            with self.subTest(message=bad), self.assertRaises(policy.Ineligible):
+                policy.signed_metadata(bad, pr, 'j0shcd/cerna-app')
+        with self.assertRaises(policy.Ineligible):
+            policy.signed_metadata(message, {'head': {'ref': 'dependabot/npm_and_yarn/frontend/security-patches-1234'}}, 'j0shcd/cerna-app')
 
     def test_effective_active_rules_require_strict_github_actions_and_a_pr_rule(self):
         rules = [{'ruleset_id': 42, 'type': 'required_status_checks', 'parameters': {'strict_required_status_checks_policy': True, 'required_status_checks': [{'context': 'Dependency validation', 'integration_id': 15368}]}}, {'ruleset_id': 42, 'type': 'pull_request', 'parameters': {'required_approving_review_count': 0, 'require_code_owner_review': False, 'require_last_push_approval': False}}]

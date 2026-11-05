@@ -1,4 +1,4 @@
-name: Guarded Dependabot security patches
+name: Guarded Dependabot updates
 on:
   pull_request_target:
     types: [opened, reopened, synchronize, ready_for_review]

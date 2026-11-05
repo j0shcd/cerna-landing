@@ -6,10 +6,10 @@ Update after dependency remediation and cloud-check changes.
 
 ## PR repair verification, 5 November 2026
 
-The repair checkout replays the earlier local Chrome rollout fix on published
-main `64a6adb`, then adds the guarded routine-update policy. The existing landing
-PRs #4, #5, #6, #8 and #9 had passing functional/security runs; those older heads
-still need current-base review. Major Actions updates are not routine npm
+The Chrome rollout fix and guarded routine-update policy merged in
+[PR #11](https://github.com/j0shcd/cerna-landing/pull/11) as `f124dc6156`.
+Major Actions PRs #4, #5, #6 and #9 still need current-base and bundled-dependency
+review. Major Actions updates are not routine npm
 patches, and their bundled dependencies need separate review.
 
 Local verification passes types, 83 units, 10 browser-policy tests, eight Chrome
@@ -20,11 +20,24 @@ installed identities with zero findings and no exceptions. Actionlint and
 regressions; the repaired guard passes. Local logs use
 `/private/tmp/cerna-landing-repair-*`. No deployment occurred.
 
-Publication, final head, hosted checks and merge state are owned by
-[PR #11](https://github.com/j0shcd/cerna-landing/pull/11), published at `5971d5e`.
-Next bounded step: review and merge the verified final head, then observe the
-first qualifying routine bot PR. Ruleset metadata and fixture tests alone do
-not establish successful automatic merging.
+The final PR head `be80bf5` passed hosted
+[validation](https://github.com/j0shcd/cerna-landing/actions/runs/42043731598) and
+[security](https://github.com/j0shcd/cerna-landing/actions/runs/42043731612).
+The merged remote repair branch and temporary clone are removed; local main is
+synchronized. The earlier local Chrome commit and reconciliation history remain
+under `archive/cerna-maintenance-followup-2026-11-05` and
+`archive/cerna-landing-local-reconciliation-2026-11-05`.
+
+Dependabot has opened a real grouped update,
+[PR #12](https://github.com/j0shcd/cerna-landing/pull/12). Its functional and
+security runs pass. The guard declined it because dependency metadata changes;
+the diff also includes a `0.x` minor and a pre-release dependency update, which
+require review under the current policy. It must not be described as a qualifying
+automatic merge. Next bounded step: review that PR and observe the first fully
+eligible routine merge. Ruleset metadata and fixture tests alone do not establish
+successful automatic merging. The existing daily monitor owns scoped repair PRs
+and meaningful review/merge messages in the maintenance chat; scheduled delivery
+has not yet been observed.
 
 ## Browser engines, 5 November 2026
 

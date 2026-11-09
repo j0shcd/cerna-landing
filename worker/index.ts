@@ -2,6 +2,7 @@ import type { Env } from './env';
 import { ingest } from './ingest';
 import { waitlist, unsubscribe } from './handler';
 import { processOutbox } from './outbox';
+export { SignupMail } from './signup-mail';
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const path = new URL(request.url).pathname;

@@ -1,5 +1,6 @@
 export interface Env {
   WAITLIST_DB: D1Database;
+  SIGNUP_MAIL?: DurableObjectNamespace;
   SITE_ORIGIN: string;
   MAIL_FROM: string;
   MAIL_FROM_NAME: string;

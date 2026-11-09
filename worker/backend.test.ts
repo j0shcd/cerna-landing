@@ -6,13 +6,16 @@ import worker from './index';
 import { database } from './test-support/d1';
 import type { Env } from './env';
 import { normalizeEmail } from './validate';
-import { processOutbox } from './outbox';
+import { processOutbox as drainOutbox } from './outbox';
+import { mailNamespace } from './test-support/signup-mail';
+import { mailOperation } from './signup-mail';
 import { ipDigest, rateLimited } from './ratelimit';
 
 let store: ReturnType<typeof database>;
 let env: Env;
 let tasks: Promise<unknown>[];
 let ctx: ExecutionContext;
+let mail: ReturnType<typeof mailNamespace>;
 const start = Date.parse('2026-10-20T12:00:00.000Z');
 const rows = (table: string) => store.sqlite.prepare(`SELECT * FROM ${table}`).all();
 async function post(email: unknown = 'user@example.eu', company = '', form = false, headers: Record<string, string> = {}) {
@@ -22,9 +25,30 @@ async function post(email: unknown = 'user@example.eu', company = '', form = fal
   }), env, ctx);
 }
 async function drain() { await Promise.all(tasks); tasks = []; }
+// Provider injection stays inside the actual coordinator class, not in a
+// Worker bypass around it. Existing outbox cases retain their fake senders.
+async function processOutbox(testEnv: Env, deps: { now?: () => number; send?: typeof fetch } = {}) {
+  mail.send(deps.send);
+  return drainOutbox(testEnv, { now: deps.now });
+}
+function gate() {
+  let open!: () => void;
+  const reached = new Promise<void>(resolve => { open = resolve; });
+  return { reached, open };
+}
+const nextTurn = () => new Promise<void>(resolve => setTimeout(resolve, 0));
+async function reached(promise: Promise<void>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([promise, new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error('controlled test barrier was not reached')), 1_000);
+    })]);
+  } finally { clearTimeout(timer); }
+}
 beforeEach(() => {
   store = database(); tasks = [];
   env = { WAITLIST_DB: store.db, SITE_ORIGIN: 'https://cerna.example', MAIL_FROM: 'waitlist@cerna.example', MAIL_FROM_NAME: 'Cerna', ADMIN_NOTIFY_TO: 'owner@example.eu', CONSENT_VERSION: '2026-10-22', EMAIL_ENABLED: 'false', BREVO_API_KEY: 'secret-test-key', RATE_LIMIT_HMAC_KEY: 'test-hmac-key', UNSUBSCRIBE_HMAC_KEY: 'unsubscribe-test-secret' };
+  mail = mailNamespace(env); env.SIGNUP_MAIL = mail.namespace;
   ctx = { waitUntil(task: Promise<unknown>) { tasks.push(task); } } as ExecutionContext;
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -317,6 +341,178 @@ describe('welcome and unsubscribe', () => {
       expect(rows('waitlist_signups')).toHaveLength(0);
       expect(rows('outbox')).toHaveLength(0);
     }
+  });
+  async function deliveredWelcome() {
+    const token = await seed();
+    store.sqlite.exec("UPDATE outbox SET next_attempt_at='2099-01-01' WHERE kind='owner_notification'");
+    env.EMAIL_ENABLED = 'true';
+    const welcomeSend = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 201 }));
+    await processOutbox(env, { now: () => start, send: welcomeSend });
+    expect(welcomeSend).toHaveBeenCalledTimes(1);
+    const deliveredWelcome = JSON.parse(welcomeSend.mock.calls[0]![1]!.body as string);
+    expect(deliveredWelcome.to).toEqual([{ email: 'user@example.eu' }]);
+    const deliveredToken = new URL(deliveredWelcome.headers['List-Unsubscribe'].slice(1, -1)).searchParams.get('token');
+    expect(deliveredToken).toBe(token);
+    expect(rows('outbox').find(row => row.kind === 'welcome')).toMatchObject({ status: 'sent' });
+    store.sqlite.exec("UPDATE outbox SET next_attempt_at='2020-01-01' WHERE kind='owner_notification'");
+    return { token, signup: rows('waitlist_signups')[0]! };
+  }
+  it.each(['owner_notification', 'welcome'])('blocks delayed %s handoff after successful unsubscribe and coordinator reboot', async kind => {
+    const { token, signup } = await deliveredWelcome();
+    if (kind === 'welcome') {
+      // An accepted-but-unrecorded welcome can be retried under at-least-once
+      // delivery. The previously delivered token is genuinely available.
+      store.sqlite.exec("UPDATE outbox SET status='sent', sent_at='2026-10-20T12:00:00.000Z' WHERE kind='owner_notification'");
+      store.sqlite.exec("UPDATE outbox SET status='pending', sent_at=NULL WHERE kind='welcome'");
+    }
+    const outbox = rows('outbox').find(row => row.kind === kind)!;
+    const copied = gate(); const release = gate();
+    mail.beforeDispatch = async request => {
+      if (new URL(request.url).pathname === '/deliver') { copied.open(); await release.reached; }
+    };
+    const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 201 }));
+    const processing = processOutbox(env, { now: () => start, send });
+    try {
+      await reached(copied.reached);
+      expect(send).not.toHaveBeenCalled();
+      const claimed = rows('outbox').find(row => row.id === outbox.id)!;
+      expect(claimed.attempts).toBeGreaterThan(0);
+      expect((await remove(token)).status).toBe(200);
+      expect(rows('waitlist_signups')).toHaveLength(0); expect(rows('outbox')).toHaveLength(0);
+      mail.reboot();
+      // Restore dummy D1 state to make this a positive tombstone witness, not
+      // merely a no-row no-op. This represents delayed/restored old work.
+      store.sqlite.prepare('INSERT INTO waitlist_signups VALUES (?,?,?,?,?,?)')
+        .run(signup.id, signup.email, signup.created_at, signup.consent_version, signup.consent_text, signup.source);
+      store.sqlite.prepare('INSERT INTO outbox(id,signup_id,kind,next_attempt_at,locked_until,attempts) VALUES (?,?,?,?,?,?)')
+        .run(claimed.id, claimed.signup_id, claimed.kind, claimed.next_attempt_at, claimed.locked_until, claimed.attempts);
+      release.open(); await processing;
+      expect(send).not.toHaveBeenCalled();
+      expect(mail.records.get(String(signup.id))?.get('revoked')).toBe(true);
+      expect([...mail.records.get(String(signup.id))!.keys()].sort()).toEqual(['revoked', 'signup_id']);
+      expect(mail.locations.every(location => location === 'eu')).toBe(true);
+      const retried = await mailOperation(env, String(signup.id), 'deliver', { outboxId: String(claimed.id), lock: String(claimed.locked_until) });
+      expect(retried.status).toBe(410); expect(send).not.toHaveBeenCalled();
+    } finally { release.open(); await processing; mail.beforeDispatch = undefined; }
+  });
+  it('does not acknowledge unsubscribe while a copied signup is inside the send gate', async () => {
+    const { token } = await deliveredWelcome();
+    const copied = gate(); const release = gate(); const cancellation = gate();
+    const prepare = store.db.prepare.bind(store.db);
+    const barrier = vi.spyOn(store.db, 'prepare').mockImplementation(sql => {
+      const statement = prepare(sql);
+      if (sql === 'SELECT COUNT(*) AS total FROM waitlist_signups') {
+        const first = statement.first.bind(statement);
+        statement.first = async <T = Record<string, unknown>>(column?: string): Promise<T | null> => {
+          const result = column === undefined ? await first<T>() : await first<T>(column);
+          copied.open();
+          await release.reached;
+          return result;
+        };
+      }
+      return statement;
+    });
+    mail.beforeDispatch = async request => { if (new URL(request.url).pathname === '/unsubscribe') cancellation.open(); };
+    let deletionCompleted = false;
+    const send = vi.fn<typeof fetch>().mockImplementation(async () => {
+      expect(deletionCompleted).toBe(false);
+      return new Response(null, { status: 201 });
+    });
+    const processing = processOutbox(env, { now: () => start, send });
+    try {
+      await reached(copied.reached);
+      expect(send).not.toHaveBeenCalled();
+      const removing = remove(token).then(response => { deletionCompleted = true; return response; });
+      await reached(cancellation.reached);
+      // Dispatch arrival precedes storage/D1 microtasks. Drain a complete turn
+      // while delivery is still held so an absent coordinator gate is observable.
+      await nextTurn();
+      expect(deletionCompleted).toBe(false);
+      expect(rows('waitlist_signups')).toHaveLength(1);
+      release.open();
+      const removed = await removing;
+      expect(removed.status).toBe(200);
+      expect(await removed.json()).toEqual({ ok: true });
+      expect(rows('waitlist_signups')).toHaveLength(0);
+      expect(rows('outbox')).toHaveLength(0);
+      await processing;
+      expect(send).toHaveBeenCalledTimes(1);
+      await processOutbox(env, { now: () => start + 60_000, send });
+      expect(send).toHaveBeenCalledTimes(1);
+    } finally {
+      release.open();
+      await processing;
+      barrier.mockRestore();
+      mail.beforeDispatch = undefined;
+    }
+  });
+  it('keeps welcome token preparation in the same cancellation gate', async () => {
+    const { token } = await deliveredWelcome();
+    store.sqlite.exec("UPDATE outbox SET status='sent', sent_at='2026-10-20T12:00:00.000Z' WHERE kind='owner_notification'");
+    store.sqlite.exec("UPDATE outbox SET status='pending', sent_at=NULL WHERE kind='welcome'");
+    const preparing = gate(); const release = gate(); const cancellation = gate();
+    const sign = crypto.subtle.sign.bind(crypto.subtle);
+    const barrier = vi.spyOn(crypto.subtle, 'sign').mockImplementationOnce(async (...args) => {
+      preparing.open(); await release.reached; return sign(...args);
+    });
+    mail.beforeDispatch = async request => { if (new URL(request.url).pathname === '/unsubscribe') cancellation.open(); };
+    let completed = false;
+    const send = vi.fn<typeof fetch>().mockImplementation(async () => {
+      expect(completed).toBe(false); return new Response(null, { status: 201 });
+    });
+    const processing = processOutbox(env, { now: () => start, send });
+    try {
+      await reached(preparing.reached);
+      const removing = remove(token).then(response => { completed = true; return response; });
+      await reached(cancellation.reached);
+      await nextTurn();
+      expect(completed).toBe(false); expect(send).not.toHaveBeenCalled();
+      release.open();
+      expect((await removing).status).toBe(200);
+      await processing;
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(rows('waitlist_signups')).toHaveLength(0); expect(rows('outbox')).toHaveLength(0);
+    } finally { release.open(); await processing; barrier.mockRestore(); mail.beforeDispatch = undefined; }
+  });
+  it('fails closed without a coordinator binding instead of sending or acknowledging deletion', async () => {
+    const token = await seed();
+    delete env.SIGNUP_MAIL;
+    expect((await remove(token)).status).toBe(500);
+    expect(rows('waitlist_signups')).toHaveLength(1);
+    env.EMAIL_ENABLED = 'true';
+    const send = vi.fn<typeof fetch>();
+    await processOutbox(env, { now: () => start, send });
+    expect(send).not.toHaveBeenCalled();
+    expect(rows('outbox').every(row => row.status === 'pending' && row.attempts === 1)).toBe(true);
+  });
+  it('requires a durable tombstone and retains it across failed D1 deletion and reboot', async () => {
+    const token = await seed();
+    const id = String(rows('waitlist_signups')[0]!.id);
+    mail.failWrites = true;
+    expect((await remove(token)).status).toBe(500);
+    expect(rows('waitlist_signups')).toHaveLength(1);
+    mail.failWrites = false;
+    store.sqlite.exec("CREATE TRIGGER reject_delete BEFORE DELETE ON waitlist_signups BEGIN SELECT RAISE(ABORT, 'dummy delete failed'); END");
+    expect((await remove(token)).status).toBe(500);
+    expect(mail.records.get(id)?.get('revoked')).toBe(true);
+    mail.reboot(); env.EMAIL_ENABLED = 'true';
+    const send = vi.fn<typeof fetch>();
+    await processOutbox(env, { now: () => start, send });
+    expect(send).not.toHaveBeenCalled();
+    store.sqlite.exec('DROP TRIGGER reject_delete');
+    expect((await remove(token)).status).toBe(200);
+    expect(rows('waitlist_signups')).toHaveLength(0); expect(rows('outbox')).toHaveLength(0);
+    expect(mail.records.get(id)?.get('revoked')).toBe(true);
+  });
+  it('does not initiate mail when unsubscribe completes before outbox processing', async () => {
+    const token = await seed();
+    expect((await remove(token)).status).toBe(200);
+    env.EMAIL_ENABLED = 'true';
+    const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 201 }));
+    await processOutbox(env, { now: () => start, send });
+    expect(send).not.toHaveBeenCalled();
+    expect(rows('waitlist_signups')).toHaveLength(0);
+    expect(rows('outbox')).toHaveLength(0);
   });
   it('rejects tampered, wrong-key and malformed tokens without deleting', async () => {
     const token = await seed();

@@ -6,7 +6,9 @@ Dependency audit, remaining risks and automated monitoring:
 ## What this is
 
 A static Astro launch page served by Cloudflare Static Assets, with a Worker API,
-D1 waitlist and a Brevo outbox for owner notifications and welcome emails. The Worker
+D1 waitlist and a Brevo outbox for owner notifications and welcome emails. One
+EU-jurisdiction SQLite-backed Durable Object per signup serializes delivery and
+unsubscribe. The Worker
 handles `/api/*` and `/ingest/*`; static assets handle the site. Optional PostHog EU
 analytics use the same origin. The Worker calls Brevo server-side when enabled.
 
@@ -36,7 +38,9 @@ npx vitest run
 ```
 
 Tests use the actual migration and SQL in in-memory Node SQLite, not a deployed
-D1 database. Backend regressions cover legacy migration preservation, atomic
+D1 database. Coordinator tests instantiate the real class with fake persistent
+storage and input gates; they do not emulate or verify Cloudflare's scheduler.
+Backend regressions cover legacy migration preservation, atomic
 owner/welcome enqueueing (including rollback on welcome failure), duplicate and
 honeypot behavior, welcome headers/template/recipient, signed deletion in all
 POST formats, idempotency, GET safety, body limits, origins and shared rate limits.
@@ -128,6 +132,17 @@ periods; the owner should confirm the available options in the dashboard.
 The existing cron runs every minute. Deployment and account setup are not
 performed by local tests.
 
+The `SIGNUP_MAIL` Durable Object binding and `v1-signup-mail` SQLite class
+migration are declared locally in `wrangler.jsonc`. They have not been deployed
+or activated by this repair. Before activation, the owner must verify the
+actual account, Worker, EU D1 attachment and Durable Object availability/usage
+limits. Keep `EMAIL_ENABLED=false` until the binding and migration have been
+approved and verified. Drain pre-coordinator Worker versions and in-flight
+tasks, or prove they cannot send mail, before claiming the live cancellation
+guarantee; their old direct sender cannot be fenced by the new coordinator.
+Missing coordinator bindings fail closed for delivery
+and unsubscribe; there is no direct Worker send fallback.
+
 ## API and delivery
 
 `GET /api/health` returns `200 {"ok":true}`. `POST /api/waitlist` accepts JSON or
@@ -165,7 +180,8 @@ with the original query. `POST /api/unsubscribe` accepts `token` in the query,
 a form-encoded body or JSON `{token}`; RFC 8058 `List-Unsubscribe=One-Click`
 form bodies use the query token. The same 2 KB body cap, Origin/Referer policy
 and shared per-IP limiter apply. A verified token deletes the signup and all
-outbox rows immediately; repeating it succeeds. JSON and one-click requests
+outbox rows before success; repeating it succeeds. An already-active delivery
+can delay that success until its bounded send finishes. JSON and one-click requests
 return `200 {"ok":true}` or `400 {"ok":false,"error":"invalid_token"}`.
 Native forms redirect with 303 to `/unsubscribe?done=1` or
 `/unsubscribe?error=invalid_token`; rate/storage failures use `rate_limited` /
@@ -178,9 +194,17 @@ Keep the secret stable: rotating it invalidates previously sent links. Welcome
 emails carry `List-Unsubscribe` pointing at the API and `List-Unsubscribe-Post:
 List-Unsubscribe=One-Click`; the body link opens the human confirmation page.
 The page is noindex and uses a native POST form with a tiny script for the token
-and confirm/done/invalid states. Pending rows are deleted on unsubscribe; a send
-already accepted by Brevo cannot be recalled, nor are copies in the owner's
-mailbox deleted by this endpoint.
+and confirm/done/invalid states. Every welcome, owner notification and retry,
+and every valid unsubscribe, goes through the same signup coordinator. The
+coordinator holds `blockConcurrencyWhile` across claim validation, signup reads,
+token preparation and the external send. Unsubscribe waits behind an active
+operation, persists a revocation tombstone and deletes D1 rows before returning
+success. No later provider request for that signup may begin after that success.
+A send already initiated before completion may still arrive; provider-accepted
+mail cannot be recalled, nor are copies in the owner's mailbox deleted here.
+Canceled UUIDs retain only their signup identifier and revocation flag in the
+coordinator, including after D1 deletion or object restart. Do not remove these
+tombstones while delayed work for the UUID could still exist.
 
 Rate counters use fixed 10-minute windows (5 attempts) and UTC days (20).
 Every processor run first deletes counters older than the previous UTC day's
@@ -198,6 +222,17 @@ Leases prevent simultaneous processors from sending the same claimed row during
 normal operation. Delivery is at least once: a crash after Brevo accepts an email
 but before D1 records success, or a process stalled beyond its lease, can cause a
 duplicate. D1 and Brevo do not share a transaction.
+
+The coordinator's send uses the existing 15-second provider timeout, within
+Cloudflare's 30-second input-gate limit. A platform reset or sender failure is
+not acknowledged as successful cancellation. Throughput is serialized per
+signup, not globally. See Cloudflare's [state/input-gate contract](https://developers.cloudflare.com/durable-objects/api/state/).
+The code selects `.jurisdiction('eu')` before deriving an object ID. This
+restricts object execution and storage, not the global Worker request path;
+Cloudflare can log object IDs outside that jurisdiction. See [data location](https://developers.cloudflare.com/durable-objects/reference/data-location/).
+SQLite-backed objects have [plan quotas and usage charges](https://developers.cloudflare.com/durable-objects/platform/pricing/);
+this local declaration does not authorize paid activation or prove available
+account capacity.
 
 Read the list:
 
@@ -219,7 +254,7 @@ retry time, lease, fixed error code and sent time. Notifications to the owner
 contain only the signup email, signup UTC timestamp and running signup total.
 Rate-limit rows store only a keyed HMAC-SHA-256 IP digest, window and counter;
 raw IPs and user agents are not stored. Old counters are pruned during all
-outbox runs, retaining the current and previous UTC day. Unsubscribe immediately deletes the signup and cascades to all its outbox rows.
+outbox runs, retaining the current and previous UTC day. Successful unsubscribe deletes the signup and cascades to all its outbox rows; its non-email coordinator tombstone remains.
 Other retention cleanup is not automated. Cloudflare and Brevo may separately retain
 service logs according to account settings and their terms.
 

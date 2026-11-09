@@ -18,6 +18,10 @@
     }
   ],
   "triggers": { "crons": ["* * * * *"] },
+  "durable_objects": {
+    "bindings": [{ "name": "SIGNUP_MAIL", "class_name": "SignupMail" }]
+  },
+  "migrations": [{ "tag": "v1-signup-mail", "new_sqlite_classes": ["SignupMail"] }],
   "vars": {
     "SITE_ORIGIN": "https://cerna.example",
     "MAIL_FROM": "waitlist@cerna.example",

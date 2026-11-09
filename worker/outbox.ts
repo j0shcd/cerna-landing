@@ -1,7 +1,7 @@
 import type { Env } from './env';
-import { sendNotification, sendWelcome } from './brevo';
+import { mailOperation } from './signup-mail';
 interface Row { id: string; signup_id: string; attempts: number; kind: 'owner_notification' | 'welcome' }
-export async function processOutbox(env: Env, deps: { now?: () => number; send?: typeof fetch } = {}): Promise<void> {
+export async function processOutbox(env: Env, deps: { now?: () => number } = {}): Promise<void> {
   const clock = deps.now ?? Date.now;
   const db = env.WAITLIST_DB;
   // Retain only the current and previous day's digest counters.
@@ -29,12 +29,9 @@ export async function processOutbox(env: Env, deps: { now?: () => number; send?:
     }
     let sent = false;
     try {
-      const signup = await db.prepare('SELECT email, created_at FROM waitlist_signups WHERE id=?').bind(row.signup_id).first<{ email: string; created_at: string }>();
-      const total = await db.prepare('SELECT COUNT(*) AS total FROM waitlist_signups').first<{ total: number }>();
-      if (!signup || !total) throw new Error('missing_signup');
-      if (row.kind === 'welcome') await sendWelcome(env, signup.email, row.signup_id, deps.send);
-      else await sendNotification(env, signup, total.total, deps.send);
-      sent = true;
+      const delivered = await mailOperation(env, row.signup_id, 'deliver', { outboxId: row.id, lock });
+      if (delivered.status === 409 || delivered.status === 410) continue;
+      sent = delivered.ok;
     } catch { /* Use a fixed error code; never log email, credentials or vendor text. */ }
     const finished = clock();
     if (sent) {

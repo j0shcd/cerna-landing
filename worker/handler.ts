@@ -3,6 +3,7 @@ import type { Env } from './env';
 import { allowedOrigin, CONSENT_TEXT, normalizeEmail, readBody } from './validate';
 import { ipDigest, rateLimited } from './ratelimit';
 import { processOutbox } from './outbox';
+import { mailOperation } from './signup-mail';
 export async function waitlist(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const type = request.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase();
   const form = type === 'application/x-www-form-urlencoded';
@@ -62,7 +63,8 @@ export async function unsubscribe(request: Request, env: Env): Promise<Response>
     if (await rateLimited(env.WAITLIST_DB, digest, Date.now())) return reply(429, 'rate_limited');
     const id = await verifyUnsubscribeToken(token, env.UNSUBSCRIBE_HMAC_KEY);
     if (!id) return reply(400, 'invalid_token');
-    await env.WAITLIST_DB.prepare('DELETE FROM waitlist_signups WHERE id=?').bind(id).run();
+    const canceled = await mailOperation(env, id, 'unsubscribe');
+    if (!canceled.ok) throw new Error('unsubscribe_coordinator_failed');
     return reply(200);
   } catch {
     console.error(JSON.stringify({ event: 'unsubscribe_save_failed' }));

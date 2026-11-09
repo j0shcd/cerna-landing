@@ -4,6 +4,35 @@ Maintainer audit and monitoring runbook. Browser status verified 5 November 2026
 the dependency rollout receipts below retain their original dates.
 Update after dependency remediation and cloud-check changes.
 
+## Signup cancellation repair — local implementation, 9 November 2026
+
+`SignupMail` serializes all welcome/owner/retry delivery and unsubscribe for a
+signup UUID inside one EU-jurisdiction, SQLite-backed Durable Object. Its input
+gate covers D1 claim revalidation, copied signup fields, token preparation and
+the bounded sender. Cancellation persists a UUID/revocation tombstone before
+deleting D1 rows and returning success. That tombstone survives object restart
+and D1 deletion; it contains no email. Missing bindings or persistence failures
+produce failure, never direct-send or successful-delete fallbacks. Existing
+subscriber wording is preserved.
+
+`wrangler.jsonc` declares the binding and class migration with email still
+disabled. No account setting, migration, binding deployment, provider call or
+paid activation has been performed. README.md owns the cancellation behavior,
+data-location limits and activation prerequisites. Native tests use real D1 SQL
+with a fake Durable Object namespace/storage/input gate; they do not prove the
+Cloudflare runtime or actual EU attachments. Local types, all 90 native tests,
+the static build and an offline Wrangler bundle dry-run pass. Removing either
+the input gate or revocation check makes its regression fail. A bounded fixture
+using the old outbox reproduces one mocked send after a legitimate unsubscribe
+has succeeded and the D1 rows are gone. Evidence is retained in the external
+`security-remediation/run-1` receipt for 9 November. Exact-head hosted checks,
+publication and separate deployment approval remain pending.
+An already-initiated send can finish before
+cancellation completes; no new provider initiation is allowed after success.
+Deployment must also drain older Worker versions and in-flight tasks, or prove
+their mail path disabled. The new coordinator cannot fence a direct sender in
+an old version. This rollout prerequisite has not been verified locally.
+
 ## PR repair verification, 5 November 2026
 
 The Chrome rollout fix and guarded routine-update policy merged in

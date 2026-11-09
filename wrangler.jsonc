@@ -4,7 +4,7 @@
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   "assets": {
-    "directory": "./dist",
+    "directory": "./dist.nosync",
     "run_worker_first": ["/api/*", "/ingest/*"],
     "not_found_handling": "404-page"
   },

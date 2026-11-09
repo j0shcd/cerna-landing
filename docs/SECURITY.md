@@ -33,6 +33,18 @@ Deployment must also drain older Worker versions and in-flight tasks, or prove
 their mail path disabled. The new coordinator cannot fence a direct sender in
 an old version. This rollout prerequisite has not been verified locally.
 
+## Build output and local dependency ghosts, 9 November 2026
+
+All 190 observed top-level/scoped iCloud dependency conflict directories were
+empty; they were removed with `rmdir` only. No installed package was replaced or
+fetched, and this is not a new package-byte integrity or malware attestation.
+Differing legacy `dist` conflict files are preserved. Astro now generates
+`dist.nosync`; Wrangler and the static E2E server consume that same directory.
+The browser regression compares served HTML with canonical build bytes and
+fails when the reader is redirected to a dummy stale legacy build. Types, all
+90 native tests, all 23 static browser cases, the new build and offline Worker
+bundle pass locally. No generated assets were adopted by a deployed site.
+
 ## PR repair verification, 5 November 2026
 
 The Chrome rollout fix and guarded routine-update policy merged in

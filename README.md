@@ -143,6 +143,12 @@ guarantee; their old direct sender cannot be fenced by the new coordinator.
 Missing coordinator bindings fail closed for delivery
 and unsubscribe; there is no direct Worker send fallback.
 
+Astro, Wrangler and the browser test server use `dist.nosync` for generated
+assets so iCloud conflict copies cannot accumulate in the upload directory.
+The old ignored `dist` is not a deployment input; preserve it if it contains
+unreviewed local material. Install dependencies outside iCloud as AGENTS.md
+describes, then move the completed tree into place.
+
 ## API and delivery
 
 `GET /api/health` returns `200 {"ok":true}`. `POST /api/waitlist` accepts JSON or

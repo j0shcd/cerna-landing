@@ -7,4 +7,5 @@
 .wrangler/
 .astro/
 dist/
+dist.nosync/
 node_modules/

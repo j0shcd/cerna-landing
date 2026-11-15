@@ -4,6 +4,22 @@ Maintainer audit and monitoring runbook. Browser status verified 5 November 2026
 the dependency rollout receipts below retain their original dates.
 Update after dependency remediation and cloud-check changes.
 
+The delayed 14 November monitor candidate patches Astro 7.4.2 to 7.4.7 for
+GHSA-mh32-jxcr-mh9f and GHSA-r3h5-4585-7x3w. This static deployment does not
+use the Node image adapter; attacker-controlled dynamic tag names are a separate
+advisory prerequisite, not an established live exploit here. The official patch
+also changes upstream parser/build dependencies, including pre-1.0 native/parser
+minor releases, a p-queue major and optional platform bindings. These require
+owner review; this is not an automatically mergeable routine patch. Exact graph
+and registry/integrity/signature evidence are retained by the monitor.
+
+Typecheck, 90 units and static build pass; npm audit reports zero and signature
+verification has no missing/invalid entries. Fresh browsers remain held at the
+Chrome .80 security floor (installed .79), and exact-head hosted checks remain
+unverified under the account billing block. Keep the repair draft until review
+and full verification. The separately held Node candidate, existing provider
+auth/DO activation decisions and production deployment are unchanged.
+
 ## Signup cancellation repair — local implementation, 9 November 2026
 
 `SignupMail` serializes all welcome/owner/retry delivery and unsubscribe for a

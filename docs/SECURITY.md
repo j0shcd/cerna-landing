@@ -4,6 +4,36 @@ Maintainer audit and monitoring runbook. Browser status verified 5 November 2026
 the dependency rollout receipts below retain their original dates.
 Update after dependency remediation and cloud-check changes.
 
+## PR #16 review, 17 November 2026
+
+PR #16 patches Astro 7.4.2 to 7.4.7 for GHSA-mh32-jxcr-mh9f and
+GHSA-r3h5-4585-7x3w. This static deployment does not use the Node image adapter;
+attacker-controlled dynamic tag names are a separate advisory prerequisite,
+not an established live exploit here. All five independent review lenses
+inspected the resolved graph, including Satteri 0.11.7, p-queue 10.0.0, separate
+Rolldown 1.2.19/1.3.2 trees and optional native/WASM bindings. No concrete source
+incompatibility or new security boundary defect was found. These upstream
+transitive changes still need owner review and are not routine bot-merge eligible.
+
+The unpublished follow-up incorporates the pending Node 24.22.3 pins and floor
+with their regression test; no further npm dependency resolution changes.
+Local typecheck, all 90 units and static build pass using that Node runtime.
+Fresh OSV/installed-tree inspection covers 428 exact pairs and 263 installed
+npm versions with no findings or accepted exceptions. Fresh npm verification accepts all 263 installed package signatures and 113
+attestations. The owned dev-server startup check also returns the expected site.
+
+Original head 6a413cb has passing hosted functional run 43700045326 and security
+run 43700045401. Those checks do not cover this unpublished Node follow-up.
+Fresh Mac browser checks remain held: VersionHistory requires .80, but installed
+Chrome and Google's signed normal Stable PKG still contain .79. The guard is
+unchanged; an old engine is not accepted as fresh verification.
+
+Next: after follow-up review, obtain named push and transitive-graph merge
+approval, publish to the existing PR #16 branch and require fresh hosted checks
+at the final head. Preserve the separately held Node candidate 8664cb94e1 as
+recovery until integration. Provider/auth/DO activation and deployment remain
+held. No app native allowance is needed for this repository.
+
 ## Signup cancellation repair — local implementation, 9 November 2026
 
 `SignupMail` serializes all welcome/owner/retry delivery and unsubscribe for a
@@ -227,7 +257,7 @@ need the computer on and the app running; OSV cloud audits run independently.
 [Scheduled-task behavior](https://learn.chatgpt.com/docs/automations?surface=app).
 
 ```sh
-node --version # >=24.22.1 in the pinned 24.x line
+node --version # >=24.22.3 in the pinned 24.x line
 python3 -S tests/test_security_audit.py
 python3 -S scripts/security_audit.py
 npm audit

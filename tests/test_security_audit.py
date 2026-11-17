@@ -11,6 +11,39 @@ audit = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(audit)
 
 class SecurityAuditTests(unittest.TestCase):
+    def test_repository_node_security_floor_and_selectors(self):
+        repo = Path(__file__).resolve().parents[1]
+        policy = json.loads((repo / "security/runtime-policy.json").read_text())
+        minimum = policy["node_minimum"]
+        self.assertGreaterEqual(tuple(map(int, minimum.split("."))), (24, 22, 3))
+        manifests = [path for path in (repo / "package.json", repo / "frontend/package.json")
+                     if path.exists()]
+        self.assertTrue(manifests)
+        for path in manifests:
+            declared = json.loads(path.read_text())
+            lock = json.loads(path.with_name("package-lock.json").read_text())
+            self.assertEqual(declared["engines"]["node"], f">={minimum} <25")
+            self.assertEqual(lock["packages"][""]["engines"], declared["engines"])
+            pin = declared["volta"]["node"]
+            self.assertEqual(pin, minimum)
+            for workflow in (repo / ".github/workflows").glob("*.yml"):
+                for line in workflow.read_text().splitlines():
+                    if line.strip().startswith("node-version:"):
+                        self.assertEqual(line.split(":", 1)[1].strip().strip("\"'"), pin,
+                                         str(workflow))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "security").mkdir()
+            (root / "security/runtime-policy.json").write_text(json.dumps(policy))
+            for pin in ("24.22.1", "24.22.2", "25.0.0", minimum):
+                (root / "package.json").write_text(json.dumps({"volta": {"node": pin}}))
+                with self.subTest(pin=pin):
+                    if pin == minimum:
+                        self.assertEqual(audit.runtime_findings(root), [])
+                    else:
+                        with self.assertRaisesRegex(ValueError, "must pin patched Node"):
+                            audit.runtime_findings(root)
+
     def test_flags_vulnerable_version_and_allows_only_exact_exception(self):
         item = {"package": {"ecosystem": "npm", "name": "vite"}, "version": "5.4.21"}
         fetch = lambda batch: {"results": [{"vulns": [{"id": "GHSA-rq7h-c2jc-7f22"}]}]}

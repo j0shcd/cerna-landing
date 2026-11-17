@@ -257,7 +257,7 @@ need the computer on and the app running; OSV cloud audits run independently.
 [Scheduled-task behavior](https://learn.chatgpt.com/docs/automations?surface=app).
 
 ```sh
-node --version # >=24.22.1 in the pinned 24.x line
+node --version # >=24.22.3 in the pinned 24.x line
 python3 -S tests/test_security_audit.py
 python3 -S scripts/security_audit.py
 npm audit
